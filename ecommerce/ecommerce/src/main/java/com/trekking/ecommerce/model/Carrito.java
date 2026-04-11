@@ -1,0 +1,65 @@
+package com.trekking.ecommerce.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.trekking.ecommerce.model.enums.EstadoCarrito;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "carrito")
+public class Carrito {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_carrito")
+    private Long id;
+
+    @NotNull
+    @ManyToOne
+    @JoinColumn(name = "id_usuario", nullable = false)
+    private Usuario usuario;
+
+    @ManyToOne
+    @JoinColumn(name = "id_descuento")
+    private Descuento descuento;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EstadoCarrito estado;
+
+    @NotNull
+    @DecimalMin("0.0")
+    @Column(name = "monto_total", nullable = false, precision = 10, scale = 2)
+    private BigDecimal montoTotal;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "carrito")
+    private List<ItemCarrito> items;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "carrito")
+    private List<Orden> ordenes;
+}
+
