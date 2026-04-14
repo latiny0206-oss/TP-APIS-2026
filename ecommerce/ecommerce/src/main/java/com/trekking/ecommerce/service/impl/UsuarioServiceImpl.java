@@ -2,6 +2,7 @@ package com.trekking.ecommerce.service.impl;
 
 import com.trekking.ecommerce.dto.UsuarioRequest;
 import com.trekking.ecommerce.dto.UsuarioResponse;
+import com.trekking.ecommerce.exception.ResourceNotFoundException;
 import com.trekking.ecommerce.model.Usuario;
 import com.trekking.ecommerce.repository.UsuarioRepository;
 import com.trekking.ecommerce.service.UsuarioService;
@@ -9,6 +10,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,12 +26,11 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     public UsuarioResponse findById(Long id) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + id));
-        return toResponse(usuario);
+        return toResponse(findEntityById(id));
     }
 
     @Override
+    @Transactional
     public UsuarioResponse create(UsuarioRequest request) {
         Usuario usuario = Usuario.builder()
                 .username(request.getUsername())
@@ -44,10 +45,9 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
+    @Transactional
     public UsuarioResponse update(Long id, UsuarioRequest request) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + id));
-
+        Usuario usuario = findEntityById(id);
         usuario.setUsername(request.getUsername());
         usuario.setEmail(request.getEmail());
         usuario.setNombre(request.getNombre());
@@ -57,13 +57,19 @@ public class UsuarioServiceImpl implements UsuarioService {
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             usuario.setPassword(passwordEncoder.encode(request.getPassword()));
         }
-
         return toResponse(usuarioRepository.save(usuario));
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
+        findEntityById(id);
         usuarioRepository.deleteById(id);
+    }
+
+    public Usuario findEntityById(Long id) {
+        return usuarioRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", id));
     }
 
     private UsuarioResponse toResponse(Usuario usuario) {
@@ -78,4 +84,3 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .build();
     }
 }
-

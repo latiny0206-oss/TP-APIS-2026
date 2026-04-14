@@ -1,9 +1,14 @@
 package com.trekking.ecommerce.controller;
 
+import com.trekking.ecommerce.dto.CarritoRequest;
+import com.trekking.ecommerce.dto.CarritoResponse;
+import com.trekking.ecommerce.dto.ItemCarritoResponse;
+import com.trekking.ecommerce.dto.OrdenResponse;
 import com.trekking.ecommerce.model.Carrito;
 import com.trekking.ecommerce.model.ItemCarrito;
 import com.trekking.ecommerce.model.Orden;
 import com.trekking.ecommerce.service.CarritoService;
+import com.trekking.ecommerce.service.OrdenService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,25 +31,27 @@ import org.springframework.web.bind.annotation.RestController;
 public class CarritoController {
 
     private final CarritoService carritoService;
+    private final OrdenService ordenService;
 
     @GetMapping
-    public ResponseEntity<List<Carrito>> findAll() {
-        return ResponseEntity.ok(carritoService.findAll());
+    public ResponseEntity<List<CarritoResponse>> findAll() {
+        return ResponseEntity.ok(carritoService.findAll().stream().map(this::toResponse).toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Carrito> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(carritoService.findById(id));
+    public ResponseEntity<CarritoResponse> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(carritoService.findById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Carrito> create(@Valid @RequestBody Carrito carrito) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(carritoService.create(carrito));
+    public ResponseEntity<CarritoResponse> create(@Valid @RequestBody CarritoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(carritoService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Carrito> update(@PathVariable Long id, @Valid @RequestBody Carrito carrito) {
-        return ResponseEntity.ok(carritoService.update(id, carrito));
+    public ResponseEntity<CarritoResponse> update(@PathVariable Long id,
+            @Valid @RequestBody CarritoRequest request) {
+        return ResponseEntity.ok(toResponse(carritoService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
@@ -54,11 +61,11 @@ public class CarritoController {
     }
 
     @PostMapping("/{id}/items")
-    public ResponseEntity<ItemCarrito> agregarItem(
+    public ResponseEntity<ItemCarritoResponse> agregarItem(
             @PathVariable Long id,
             @RequestParam Long idVariante,
             @RequestParam Integer cantidad) {
-        return ResponseEntity.ok(carritoService.agregarItem(id, idVariante, cantidad));
+        return ResponseEntity.ok(toItemResponse(carritoService.agregarItem(id, idVariante, cantidad)));
     }
 
     @DeleteMapping("/{id}/items/{idItem}")
@@ -68,16 +75,17 @@ public class CarritoController {
     }
 
     @PutMapping("/{id}/items/{idItem}")
-    public ResponseEntity<ItemCarrito> actualizarItem(
+    public ResponseEntity<ItemCarritoResponse> actualizarItem(
             @PathVariable Long id,
             @PathVariable Long idItem,
             @RequestParam Integer cantidad) {
-        return ResponseEntity.ok(carritoService.actualizarItem(id, idItem, cantidad));
+        return ResponseEntity.ok(toItemResponse(carritoService.actualizarItem(id, idItem, cantidad)));
     }
 
     @GetMapping("/{id}/items")
-    public ResponseEntity<List<ItemCarrito>> obtenerItems(@PathVariable Long id) {
-        return ResponseEntity.ok(carritoService.obtenerItems(id));
+    public ResponseEntity<List<ItemCarritoResponse>> obtenerItems(@PathVariable Long id) {
+        return ResponseEntity.ok(carritoService.obtenerItems(id).stream()
+                .map(this::toItemResponse).toList());
     }
 
     @GetMapping("/{id}/total")
@@ -92,8 +100,59 @@ public class CarritoController {
     }
 
     @PostMapping("/{id}/checkout")
-    public ResponseEntity<Orden> realizarCompra(@PathVariable Long id) {
-        return ResponseEntity.ok(carritoService.realizarCompra(id));
+    public ResponseEntity<OrdenResponse> realizarCompra(@PathVariable Long id) {
+        Orden orden = carritoService.realizarCompra(id);
+        return ResponseEntity.ok(toOrdenResponse(orden));
+    }
+
+    private CarritoResponse toResponse(Carrito c) {
+        List<ItemCarritoResponse> items = carritoService.obtenerItems(c.getId()).stream()
+                .map(this::toItemResponse).toList();
+        return CarritoResponse.builder()
+                .id(c.getId())
+                .usuarioId(c.getUsuario().getId())
+                .usuarioUsername(c.getUsuario().getUsername())
+                .descuentoId(c.getDescuento() != null ? c.getDescuento().getId() : null)
+                .estado(c.getEstado())
+                .montoTotal(c.getMontoTotal())
+                .items(items)
+                .build();
+    }
+
+    private ItemCarritoResponse toItemResponse(ItemCarrito item) {
+        return ItemCarritoResponse.builder()
+                .id(item.getId())
+                .varianteId(item.getVariante().getId())
+                .varianteColor(item.getVariante().getColor())
+                .varianteTalla(item.getVariante().getTalla())
+                .productoNombre(item.getVariante().getProducto().getNombre())
+                .cantidad(item.getCantidad())
+                .precioUnitario(item.getPrecioUnitario())
+                .build();
+    }
+
+    private OrdenResponse toOrdenResponse(Orden o) {
+        List<com.trekking.ecommerce.dto.ItemOrdenResponse> items =
+                ordenService.obtenerItems(o.getId()).stream()
+                        .map(item -> com.trekking.ecommerce.dto.ItemOrdenResponse.builder()
+                                .id(item.getId())
+                                .varianteId(item.getVariante().getId())
+                                .varianteColor(item.getVariante().getColor())
+                                .varianteTalla(item.getVariante().getTalla())
+                                .productoNombre(item.getVariante().getProducto().getNombre())
+                                .cantidad(item.getCantidad())
+                                .precioAlMomento(item.getPrecioAlMomento())
+                                .build())
+                        .toList();
+        return OrdenResponse.builder()
+                .id(o.getId())
+                .usuarioId(o.getUsuario().getId())
+                .carritoId(o.getCarrito() != null ? o.getCarrito().getId() : null)
+                .descuentoId(o.getDescuento() != null ? o.getDescuento().getId() : null)
+                .fechaCreacion(o.getFechaCreacion())
+                .montoFinal(o.getMontoFinal())
+                .estado(o.getEstado())
+                .items(items)
+                .build();
     }
 }
-

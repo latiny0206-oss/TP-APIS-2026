@@ -3,7 +3,7 @@ package com.trekking.ecommerce.model.enums;
 public enum Estacion {
     PRIMAVERA,
     VERANO,
-    OTONIO,
+    OTONO,
     INVIERNO
 }
 

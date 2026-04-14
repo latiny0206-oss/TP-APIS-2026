@@ -1,5 +1,7 @@
 package com.trekking.ecommerce.controller;
 
+import com.trekking.ecommerce.dto.MarcaRequest;
+import com.trekking.ecommerce.dto.MarcaResponse;
 import com.trekking.ecommerce.model.Marca;
 import com.trekking.ecommerce.service.MarcaService;
 import jakarta.validation.Valid;
@@ -24,23 +26,26 @@ public class MarcaController {
     private final MarcaService marcaService;
 
     @GetMapping
-    public ResponseEntity<List<Marca>> findAll() {
-        return ResponseEntity.ok(marcaService.findAll());
+    public ResponseEntity<List<MarcaResponse>> findAll() {
+        List<MarcaResponse> list = marcaService.findAll().stream()
+                .map(this::toResponse).toList();
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Marca> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(marcaService.findById(id));
+    public ResponseEntity<MarcaResponse> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(marcaService.findById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Marca> create(@Valid @RequestBody Marca marca) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(marcaService.create(marca));
+    public ResponseEntity<MarcaResponse> create(@Valid @RequestBody MarcaRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(marcaService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Marca> update(@PathVariable Long id, @Valid @RequestBody Marca marca) {
-        return ResponseEntity.ok(marcaService.update(id, marca));
+    public ResponseEntity<MarcaResponse> update(@PathVariable Long id,
+            @Valid @RequestBody MarcaRequest request) {
+        return ResponseEntity.ok(toResponse(marcaService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
@@ -48,5 +53,12 @@ public class MarcaController {
         marcaService.delete(id);
         return ResponseEntity.noContent().build();
     }
-}
 
+    private MarcaResponse toResponse(Marca m) {
+        return MarcaResponse.builder()
+                .id(m.getId())
+                .nombre(m.getNombre())
+                .descripcion(m.getDescripcion())
+                .build();
+    }
+}

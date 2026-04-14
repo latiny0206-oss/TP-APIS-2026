@@ -1,5 +1,8 @@
 package com.trekking.ecommerce.service.impl;
 
+import com.trekking.ecommerce.dto.CarritoRequest;
+import com.trekking.ecommerce.exception.BusinessRuleException;
+import com.trekking.ecommerce.exception.ResourceNotFoundException;
 import com.trekking.ecommerce.model.Carrito;
 import com.trekking.ecommerce.model.Descuento;
 import com.trekking.ecommerce.model.ItemCarrito;
@@ -7,7 +10,9 @@ import com.trekking.ecommerce.model.ItemOrden;
 import com.trekking.ecommerce.model.Orden;
 import com.trekking.ecommerce.model.VarianteProducto;
 import com.trekking.ecommerce.model.enums.EstadoCarrito;
+import com.trekking.ecommerce.model.enums.EstadoDescuento;
 import com.trekking.ecommerce.model.enums.EstadoOrden;
+import com.trekking.ecommerce.model.enums.EstadoProducto;
 import com.trekking.ecommerce.model.enums.TipoDescuento;
 import com.trekking.ecommerce.repository.CarritoRepository;
 import com.trekking.ecommerce.repository.DescuentoRepository;
@@ -15,8 +20,8 @@ import com.trekking.ecommerce.repository.ItemCarritoRepository;
 import com.trekking.ecommerce.repository.ItemOrdenRepository;
 import com.trekking.ecommerce.repository.OrdenRepository;
 import com.trekking.ecommerce.repository.UsuarioRepository;
-import com.trekking.ecommerce.repository.VarianteProductoRepository;
 import com.trekking.ecommerce.service.CarritoService;
+import com.trekking.ecommerce.service.VarianteProductoService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -24,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +37,7 @@ public class CarritoServiceImpl implements CarritoService {
 
     private final CarritoRepository carritoRepository;
     private final ItemCarritoRepository itemCarritoRepository;
-    private final VarianteProductoRepository varianteProductoRepository;
+    private final VarianteProductoService varianteProductoService;
     private final DescuentoRepository descuentoRepository;
     private final OrdenRepository ordenRepository;
     private final ItemOrdenRepository itemOrdenRepository;
@@ -45,46 +51,52 @@ public class CarritoServiceImpl implements CarritoService {
     @Override
     public Carrito findById(Long id) {
         return carritoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Carrito no encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Carrito", id));
     }
 
     @Override
-    public Carrito create(Carrito carrito) {
-        carrito.setUsuario(usuarioRepository.findById(carrito.getUsuario().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + carrito.getUsuario().getId())));
-        if (carrito.getDescuento() != null) {
-            carrito.setDescuento(descuentoRepository.findById(carrito.getDescuento().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Descuento no encontrado: " + carrito.getDescuento().getId())));
-        }
+    @Transactional
+    public Carrito create(CarritoRequest request) {
+        Carrito carrito = Carrito.builder()
+                .usuario(usuarioRepository.findById(request.getUsuarioId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Usuario", request.getUsuarioId())))
+                .descuento(resolverDescuento(request.getDescuentoId()))
+                .estado(EstadoCarrito.VACIO)
+                .montoTotal(BigDecimal.ZERO)
+                .build();
         return carritoRepository.save(carrito);
     }
 
     @Override
-    public Carrito update(Long id, Carrito carrito) {
+    @Transactional
+    public Carrito update(Long id, CarritoRequest request) {
         Carrito actual = findById(id);
-        actual.setUsuario(usuarioRepository.findById(carrito.getUsuario().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + carrito.getUsuario().getId())));
-        if (carrito.getDescuento() != null) {
-            actual.setDescuento(descuentoRepository.findById(carrito.getDescuento().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Descuento no encontrado: " + carrito.getDescuento().getId())));
-        } else {
-            actual.setDescuento(null);
-        }
-        actual.setEstado(carrito.getEstado());
-        actual.setMontoTotal(carrito.getMontoTotal());
+        actual.setUsuario(usuarioRepository.findById(request.getUsuarioId())
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", request.getUsuarioId())));
+        actual.setDescuento(resolverDescuento(request.getDescuentoId()));
+        actual.setMontoTotal(calcularTotal(id));
         return carritoRepository.save(actual);
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
+        findById(id);
         carritoRepository.deleteById(id);
     }
 
     @Override
+    @Transactional
     public ItemCarrito agregarItem(Long idCarrito, Long idVariante, Integer cantidad) {
+        if (cantidad == null || cantidad < 1) {
+            throw new BusinessRuleException("La cantidad debe ser al menos 1");
+        }
         Carrito carrito = findById(idCarrito);
-        VarianteProducto variante = varianteProductoRepository.findById(idVariante)
-                .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada: " + idVariante));
+        VarianteProducto variante = varianteProductoService.findById(idVariante);
+
+        if (variante.getProducto().getEstado() != EstadoProducto.ACTIVO) {
+            throw new BusinessRuleException("El producto '" + variante.getProducto().getNombre() + "' no está disponible");
+        }
 
         ItemCarrito item = itemCarritoRepository.findByCarritoIdAndVarianteId(idCarrito, idVariante)
                 .orElse(ItemCarrito.builder()
@@ -105,12 +117,13 @@ public class CarritoServiceImpl implements CarritoService {
     }
 
     @Override
+    @Transactional
     public void eliminarItem(Long idCarrito, Long idItemCarrito) {
         findById(idCarrito);
         ItemCarrito item = itemCarritoRepository.findById(idItemCarrito)
-                .orElseThrow(() -> new IllegalArgumentException("Item de carrito no encontrado: " + idItemCarrito));
+                .orElseThrow(() -> new ResourceNotFoundException("ItemCarrito", idItemCarrito));
         if (!item.getCarrito().getId().equals(idCarrito)) {
-            throw new IllegalArgumentException("El item no pertenece al carrito indicado");
+            throw new BusinessRuleException("El item id " + idItemCarrito + " no pertenece al carrito id " + idCarrito);
         }
         itemCarritoRepository.delete(item);
         Carrito carrito = findById(idCarrito);
@@ -119,12 +132,16 @@ public class CarritoServiceImpl implements CarritoService {
     }
 
     @Override
+    @Transactional
     public ItemCarrito actualizarItem(Long idCarrito, Long idItemCarrito, Integer cantidad) {
+        if (cantidad == null || cantidad < 1) {
+            throw new BusinessRuleException("La cantidad debe ser al menos 1");
+        }
         findById(idCarrito);
         ItemCarrito item = itemCarritoRepository.findById(idItemCarrito)
-                .orElseThrow(() -> new IllegalArgumentException("Item de carrito no encontrado: " + idItemCarrito));
+                .orElseThrow(() -> new ResourceNotFoundException("ItemCarrito", idItemCarrito));
         if (!item.getCarrito().getId().equals(idCarrito)) {
-            throw new IllegalArgumentException("El item no pertenece al carrito indicado");
+            throw new BusinessRuleException("El item id " + idItemCarrito + " no pertenece al carrito id " + idCarrito);
         }
         item.setCantidad(cantidad);
         ItemCarrito saved = itemCarritoRepository.save(item);
@@ -141,10 +158,6 @@ public class CarritoServiceImpl implements CarritoService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Carrito carrito = findById(idCarrito);
-        if (carrito.getDescuento() == null) {
-            return subtotal.setScale(2, RoundingMode.HALF_UP);
-        }
-
         Descuento descuento = carrito.getDescuento();
         if (descuento == null || !estaVigente(descuento)) {
             return subtotal.setScale(2, RoundingMode.HALF_UP);
@@ -164,10 +177,10 @@ public class CarritoServiceImpl implements CarritoService {
     }
 
     @Override
+    @Transactional
     public void vaciarCarrito(Long idCarrito) {
         Carrito carrito = findById(idCarrito);
-        List<ItemCarrito> items = obtenerItems(idCarrito);
-        itemCarritoRepository.deleteAll(items);
+        itemCarritoRepository.deleteAll(obtenerItems(idCarrito));
         carrito.setMontoTotal(BigDecimal.ZERO);
         carrito.setEstado(EstadoCarrito.VACIO);
         carritoRepository.save(carrito);
@@ -179,15 +192,32 @@ public class CarritoServiceImpl implements CarritoService {
         return itemCarritoRepository.findByCarritoId(idCarrito);
     }
 
+    /**
+     * Realiza el checkout del carrito:
+     * 1. Valida que no esté vacío.
+     * 2. Descuenta el stock de cada variante (bug fix).
+     * 3. Crea la Orden con snapshot de precios.
+     * 4. Marca el carrito como CONVERTIDO.
+     */
     @Override
+    @Transactional
     public Orden realizarCompra(Long idCarrito) {
         Carrito carrito = findById(idCarrito);
         List<ItemCarrito> items = obtenerItems(idCarrito);
         if (items.isEmpty()) {
-            throw new IllegalArgumentException("No se puede generar una orden con carrito vacio");
+            throw new BusinessRuleException("No se puede realizar la compra: el carrito id " + idCarrito + " está vacío");
+        }
+
+        // Validar stock antes de descontar (falla rápido)
+        for (ItemCarrito item : items) {
+            if (!varianteProductoService.tieneStock(item.getVariante().getId(), item.getCantidad())) {
+                throw new BusinessRuleException("Stock insuficiente para la variante id "
+                        + item.getVariante().getId() + " (solicitado: " + item.getCantidad() + ")");
+            }
         }
 
         BigDecimal total = calcularTotal(idCarrito);
+
         Orden orden = Orden.builder()
                 .usuario(carrito.getUsuario())
                 .carrito(carrito)
@@ -208,6 +238,11 @@ public class CarritoServiceImpl implements CarritoService {
                 .toList();
         itemOrdenRepository.saveAll(itemsOrden);
 
+        // Descontar stock por cada ítem (bug fix)
+        for (ItemCarrito item : items) {
+            varianteProductoService.descontarStock(item.getVariante().getId(), item.getCantidad());
+        }
+
         carrito.setEstado(EstadoCarrito.CONVERTIDO);
         carrito.setMontoTotal(BigDecimal.ZERO);
         carritoRepository.save(carrito);
@@ -216,11 +251,18 @@ public class CarritoServiceImpl implements CarritoService {
         return ordenGuardada;
     }
 
+    private Descuento resolverDescuento(Long descuentoId) {
+        if (descuentoId == null) {
+            return null;
+        }
+        return descuentoRepository.findById(descuentoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Descuento", descuentoId));
+    }
+
     private boolean estaVigente(Descuento descuento) {
         LocalDate hoy = LocalDate.now();
-        return descuento.getEstado().name().equals("ACTIVO")
+        return descuento.getEstado() == EstadoDescuento.ACTIVO
                 && !hoy.isBefore(descuento.getFechaInicio())
                 && !hoy.isAfter(descuento.getFechaFin());
     }
 }
-

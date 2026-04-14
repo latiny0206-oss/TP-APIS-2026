@@ -1,5 +1,7 @@
 package com.trekking.ecommerce.controller;
 
+import com.trekking.ecommerce.dto.FotoRequest;
+import com.trekking.ecommerce.dto.FotoResponse;
 import com.trekking.ecommerce.model.Foto;
 import com.trekking.ecommerce.service.FotoService;
 import jakarta.validation.Valid;
@@ -24,23 +26,30 @@ public class FotoController {
     private final FotoService fotoService;
 
     @GetMapping
-    public ResponseEntity<List<Foto>> findAll() {
-        return ResponseEntity.ok(fotoService.findAll());
+    public ResponseEntity<List<FotoResponse>> findAll() {
+        return ResponseEntity.ok(fotoService.findAll().stream().map(this::toResponse).toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Foto> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(fotoService.findById(id));
+    public ResponseEntity<FotoResponse> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(fotoService.findById(id)));
+    }
+
+    @GetMapping("/producto/{productoId}")
+    public ResponseEntity<List<FotoResponse>> findByProducto(@PathVariable Long productoId) {
+        return ResponseEntity.ok(fotoService.findByProducto(productoId).stream()
+                .map(this::toResponse).toList());
     }
 
     @PostMapping
-    public ResponseEntity<Foto> create(@Valid @RequestBody Foto foto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(fotoService.create(foto));
+    public ResponseEntity<FotoResponse> create(@Valid @RequestBody FotoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(fotoService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Foto> update(@PathVariable Long id, @Valid @RequestBody Foto foto) {
-        return ResponseEntity.ok(fotoService.update(id, foto));
+    public ResponseEntity<FotoResponse> update(@PathVariable Long id,
+            @Valid @RequestBody FotoRequest request) {
+        return ResponseEntity.ok(toResponse(fotoService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
@@ -48,5 +57,13 @@ public class FotoController {
         fotoService.delete(id);
         return ResponseEntity.noContent().build();
     }
-}
 
+    private FotoResponse toResponse(Foto f) {
+        return FotoResponse.builder()
+                .id(f.getId())
+                .productoId(f.getProducto().getId())
+                .nombre(f.getNombre())
+                .orden(f.getOrden())
+                .build();
+    }
+}

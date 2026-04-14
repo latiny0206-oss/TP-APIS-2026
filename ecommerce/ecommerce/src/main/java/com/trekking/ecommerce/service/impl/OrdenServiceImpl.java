@@ -1,5 +1,7 @@
 package com.trekking.ecommerce.service.impl;
 
+import com.trekking.ecommerce.exception.BusinessRuleException;
+import com.trekking.ecommerce.exception.ResourceNotFoundException;
 import com.trekking.ecommerce.model.ItemOrden;
 import com.trekking.ecommerce.model.Orden;
 import com.trekking.ecommerce.model.enums.EstadoOrden;
@@ -13,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -32,38 +35,40 @@ public class OrdenServiceImpl implements OrdenService {
     @Override
     public Orden findById(Long id) {
         return ordenRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Orden", id));
     }
 
     @Override
+    @Transactional
     public Orden create(Orden orden) {
         orden.setUsuario(usuarioRepository.findById(orden.getUsuario().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + orden.getUsuario().getId())));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", orden.getUsuario().getId())));
         if (orden.getCarrito() != null) {
             orden.setCarrito(carritoRepository.findById(orden.getCarrito().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Carrito no encontrado: " + orden.getCarrito().getId())));
+                    .orElseThrow(() -> new ResourceNotFoundException("Carrito", orden.getCarrito().getId())));
         }
         if (orden.getDescuento() != null) {
             orden.setDescuento(descuentoRepository.findById(orden.getDescuento().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Descuento no encontrado: " + orden.getDescuento().getId())));
+                    .orElseThrow(() -> new ResourceNotFoundException("Descuento", orden.getDescuento().getId())));
         }
         return ordenRepository.save(orden);
     }
 
     @Override
+    @Transactional
     public Orden update(Long id, Orden orden) {
         Orden actual = findById(id);
         actual.setUsuario(usuarioRepository.findById(orden.getUsuario().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + orden.getUsuario().getId())));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", orden.getUsuario().getId())));
         if (orden.getCarrito() != null) {
             actual.setCarrito(carritoRepository.findById(orden.getCarrito().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Carrito no encontrado: " + orden.getCarrito().getId())));
+                    .orElseThrow(() -> new ResourceNotFoundException("Carrito", orden.getCarrito().getId())));
         } else {
             actual.setCarrito(null);
         }
         if (orden.getDescuento() != null) {
             actual.setDescuento(descuentoRepository.findById(orden.getDescuento().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Descuento no encontrado: " + orden.getDescuento().getId())));
+                    .orElseThrow(() -> new ResourceNotFoundException("Descuento", orden.getDescuento().getId())));
         } else {
             actual.setDescuento(null);
         }
@@ -74,20 +79,31 @@ public class OrdenServiceImpl implements OrdenService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
+        findById(id);
         ordenRepository.deleteById(id);
     }
 
     @Override
+    @Transactional
     public Orden confirmar(Long id) {
         Orden orden = findById(id);
+        if (orden.getEstado() != EstadoOrden.PENDIENTE) {
+            throw new BusinessRuleException("Solo se puede confirmar una orden en estado PENDIENTE. Estado actual: "
+                    + orden.getEstado());
+        }
         orden.setEstado(EstadoOrden.CONFIRMADA);
         return ordenRepository.save(orden);
     }
 
     @Override
+    @Transactional
     public Orden cancelar(Long id) {
         Orden orden = findById(id);
+        if (orden.getEstado() == EstadoOrden.ENTREGADA || orden.getEstado() == EstadoOrden.CANCELADA) {
+            throw new BusinessRuleException("No se puede cancelar una orden en estado " + orden.getEstado());
+        }
         orden.setEstado(EstadoOrden.CANCELADA);
         return ordenRepository.save(orden);
     }
@@ -99,6 +115,7 @@ public class OrdenServiceImpl implements OrdenService {
 
     @Override
     public List<ItemOrden> obtenerItems(Long id) {
+        findById(id);
         return itemOrdenRepository.findByOrdenId(id);
     }
 
@@ -107,4 +124,3 @@ public class OrdenServiceImpl implements OrdenService {
         return ordenRepository.findByUsuarioId(idUsuario);
     }
 }
-

@@ -1,5 +1,6 @@
 package com.trekking.ecommerce.service.impl;
 
+import com.trekking.ecommerce.exception.ResourceNotFoundException;
 import com.trekking.ecommerce.model.ItemCarrito;
 import com.trekking.ecommerce.repository.CarritoRepository;
 import com.trekking.ecommerce.repository.ItemCarritoRepository;
@@ -25,15 +26,15 @@ public class ItemCarritoServiceImpl implements ItemCarritoService {
     @Override
     public ItemCarrito findById(Long id) {
         return itemCarritoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("ItemCarrito no encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("ItemCarrito no encontrado: " + id));
     }
 
     @Override
     public ItemCarrito create(ItemCarrito itemCarrito) {
         itemCarrito.setCarrito(carritoRepository.findById(itemCarrito.getCarrito().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Carrito no encontrado: " + itemCarrito.getCarrito().getId())));
+                .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado: " + itemCarrito.getCarrito().getId())));
         itemCarrito.setVariante(varianteProductoRepository.findById(itemCarrito.getVariante().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada: " + itemCarrito.getVariante().getId())));
+                .orElseThrow(() -> new ResourceNotFoundException("Variante no encontrada: " + itemCarrito.getVariante().getId())));
         return itemCarritoRepository.save(itemCarrito);
     }
 
@@ -41,9 +42,9 @@ public class ItemCarritoServiceImpl implements ItemCarritoService {
     public ItemCarrito update(Long id, ItemCarrito itemCarrito) {
         ItemCarrito actual = findById(id);
         actual.setCarrito(carritoRepository.findById(itemCarrito.getCarrito().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Carrito no encontrado: " + itemCarrito.getCarrito().getId())));
+                .orElseThrow(() -> new ResourceNotFoundException("Carrito no encontrado: " + itemCarrito.getCarrito().getId())));
         actual.setVariante(varianteProductoRepository.findById(itemCarrito.getVariante().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Variante no encontrada: " + itemCarrito.getVariante().getId())));
+                .orElseThrow(() -> new ResourceNotFoundException("Variante no encontrada: " + itemCarrito.getVariante().getId())));
         actual.setCantidad(itemCarrito.getCantidad());
         actual.setPrecioUnitario(itemCarrito.getPrecioUnitario());
         return itemCarritoRepository.save(actual);
@@ -51,6 +52,7 @@ public class ItemCarritoServiceImpl implements ItemCarritoService {
 
     @Override
     public void delete(Long id) {
+        findById(id);
         itemCarritoRepository.deleteById(id);
     }
 }

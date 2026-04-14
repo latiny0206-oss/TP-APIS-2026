@@ -1,20 +1,18 @@
 package com.trekking.ecommerce.controller;
 
+import com.trekking.ecommerce.dto.ItemOrdenResponse;
+import com.trekking.ecommerce.dto.OrdenResponse;
 import com.trekking.ecommerce.model.ItemOrden;
 import com.trekking.ecommerce.model.Orden;
 import com.trekking.ecommerce.service.OrdenService;
-import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,23 +24,13 @@ public class OrdenController {
     private final OrdenService ordenService;
 
     @GetMapping
-    public ResponseEntity<List<Orden>> findAll() {
-        return ResponseEntity.ok(ordenService.findAll());
+    public ResponseEntity<List<OrdenResponse>> findAll() {
+        return ResponseEntity.ok(ordenService.findAll().stream().map(this::toResponse).toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Orden> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(ordenService.findById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<Orden> create(@Valid @RequestBody Orden orden) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ordenService.create(orden));
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<Orden> update(@PathVariable Long id, @Valid @RequestBody Orden orden) {
-        return ResponseEntity.ok(ordenService.update(id, orden));
+    public ResponseEntity<OrdenResponse> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(ordenService.findById(id)));
     }
 
     @DeleteMapping("/{id}")
@@ -52,13 +40,13 @@ public class OrdenController {
     }
 
     @PostMapping("/{id}/confirmar")
-    public ResponseEntity<Orden> confirmar(@PathVariable Long id) {
-        return ResponseEntity.ok(ordenService.confirmar(id));
+    public ResponseEntity<OrdenResponse> confirmar(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(ordenService.confirmar(id)));
     }
 
     @PostMapping("/{id}/cancelar")
-    public ResponseEntity<Orden> cancelar(@PathVariable Long id) {
-        return ResponseEntity.ok(ordenService.cancelar(id));
+    public ResponseEntity<OrdenResponse> cancelar(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(ordenService.cancelar(id)));
     }
 
     @GetMapping("/{id}/monto-final")
@@ -67,13 +55,41 @@ public class OrdenController {
     }
 
     @GetMapping("/{id}/items")
-    public ResponseEntity<List<ItemOrden>> obtenerItems(@PathVariable Long id) {
-        return ResponseEntity.ok(ordenService.obtenerItems(id));
+    public ResponseEntity<List<ItemOrdenResponse>> obtenerItems(@PathVariable Long id) {
+        return ResponseEntity.ok(ordenService.obtenerItems(id).stream()
+                .map(this::toItemResponse).toList());
     }
 
     @GetMapping("/usuario/{idUsuario}")
-    public ResponseEntity<List<Orden>> historialPorUsuario(@PathVariable Long idUsuario) {
-        return ResponseEntity.ok(ordenService.findByUsuario(idUsuario));
+    public ResponseEntity<List<OrdenResponse>> historialPorUsuario(@PathVariable Long idUsuario) {
+        return ResponseEntity.ok(ordenService.findByUsuario(idUsuario).stream()
+                .map(this::toResponse).toList());
+    }
+
+    private OrdenResponse toResponse(Orden o) {
+        List<ItemOrdenResponse> items = ordenService.obtenerItems(o.getId()).stream()
+                .map(this::toItemResponse).toList();
+        return OrdenResponse.builder()
+                .id(o.getId())
+                .usuarioId(o.getUsuario().getId())
+                .carritoId(o.getCarrito() != null ? o.getCarrito().getId() : null)
+                .descuentoId(o.getDescuento() != null ? o.getDescuento().getId() : null)
+                .fechaCreacion(o.getFechaCreacion())
+                .montoFinal(o.getMontoFinal())
+                .estado(o.getEstado())
+                .items(items)
+                .build();
+    }
+
+    private ItemOrdenResponse toItemResponse(ItemOrden item) {
+        return ItemOrdenResponse.builder()
+                .id(item.getId())
+                .varianteId(item.getVariante().getId())
+                .varianteColor(item.getVariante().getColor())
+                .varianteTalla(item.getVariante().getTalla())
+                .productoNombre(item.getVariante().getProducto().getNombre())
+                .cantidad(item.getCantidad())
+                .precioAlMomento(item.getPrecioAlMomento())
+                .build();
     }
 }
-

@@ -1,15 +1,19 @@
 package com.trekking.ecommerce.service.impl;
 
+import com.trekking.ecommerce.dto.DescuentoRequest;
+import com.trekking.ecommerce.exception.ResourceNotFoundException;
 import com.trekking.ecommerce.model.Descuento;
 import com.trekking.ecommerce.model.enums.EstadoDescuento;
 import com.trekking.ecommerce.model.enums.TipoDescuento;
 import com.trekking.ecommerce.repository.DescuentoRepository;
 import com.trekking.ecommerce.service.DescuentoService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,28 +29,40 @@ public class DescuentoServiceImpl implements DescuentoService {
     @Override
     public Descuento findById(Long id) {
         return descuentoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Descuento no encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Descuento", id));
     }
 
     @Override
-    public Descuento create(Descuento descuento) {
+    @Transactional
+    public Descuento create(DescuentoRequest request) {
+        Descuento descuento = Descuento.builder()
+                .tipo(request.getTipo())
+                .valor(request.getValor())
+                .fechaInicio(request.getFechaInicio())
+                .fechaFin(request.getFechaFin())
+                .estado(request.getEstado())
+                .porcentaje(request.getPorcentaje())
+                .build();
         return descuentoRepository.save(descuento);
     }
 
     @Override
-    public Descuento update(Long id, Descuento descuento) {
+    @Transactional
+    public Descuento update(Long id, DescuentoRequest request) {
         Descuento actual = findById(id);
-        actual.setTipo(descuento.getTipo());
-        actual.setValor(descuento.getValor());
-        actual.setFechaInicio(descuento.getFechaInicio());
-        actual.setFechaFin(descuento.getFechaFin());
-        actual.setEstado(descuento.getEstado());
-        actual.setPorcentaje(descuento.getPorcentaje());
+        actual.setTipo(request.getTipo());
+        actual.setValor(request.getValor());
+        actual.setFechaInicio(request.getFechaInicio());
+        actual.setFechaFin(request.getFechaFin());
+        actual.setEstado(request.getEstado());
+        actual.setPorcentaje(request.getPorcentaje());
         return descuentoRepository.save(actual);
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
+        findById(id);
         descuentoRepository.deleteById(id);
     }
 
@@ -62,7 +78,7 @@ public class DescuentoServiceImpl implements DescuentoService {
         BigDecimal porcentaje = descuento.getPorcentaje() != null
                 ? BigDecimal.valueOf(descuento.getPorcentaje())
                 : descuento.getValor();
-        return monto.multiply(porcentaje).divide(BigDecimal.valueOf(100));
+        return monto.multiply(porcentaje).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 
     @Override
@@ -74,4 +90,3 @@ public class DescuentoServiceImpl implements DescuentoService {
                 && !hoy.isAfter(descuento.getFechaFin());
     }
 }
-

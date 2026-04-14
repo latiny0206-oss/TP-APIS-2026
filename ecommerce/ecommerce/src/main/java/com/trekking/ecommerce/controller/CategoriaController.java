@@ -1,5 +1,7 @@
 package com.trekking.ecommerce.controller;
 
+import com.trekking.ecommerce.dto.CategoriaRequest;
+import com.trekking.ecommerce.dto.CategoriaResponse;
 import com.trekking.ecommerce.model.Categoria;
 import com.trekking.ecommerce.service.CategoriaService;
 import jakarta.validation.Valid;
@@ -24,23 +26,26 @@ public class CategoriaController {
     private final CategoriaService categoriaService;
 
     @GetMapping
-    public ResponseEntity<List<Categoria>> findAll() {
-        return ResponseEntity.ok(categoriaService.findAll());
+    public ResponseEntity<List<CategoriaResponse>> findAll() {
+        List<CategoriaResponse> list = categoriaService.findAll().stream()
+                .map(this::toResponse).toList();
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Categoria> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(categoriaService.findById(id));
+    public ResponseEntity<CategoriaResponse> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(categoriaService.findById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Categoria> create(@Valid @RequestBody Categoria categoria) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(categoriaService.create(categoria));
+    public ResponseEntity<CategoriaResponse> create(@Valid @RequestBody CategoriaRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(categoriaService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Categoria> update(@PathVariable Long id, @Valid @RequestBody Categoria categoria) {
-        return ResponseEntity.ok(categoriaService.update(id, categoria));
+    public ResponseEntity<CategoriaResponse> update(@PathVariable Long id,
+            @Valid @RequestBody CategoriaRequest request) {
+        return ResponseEntity.ok(toResponse(categoriaService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
@@ -48,5 +53,12 @@ public class CategoriaController {
         categoriaService.delete(id);
         return ResponseEntity.noContent().build();
     }
-}
 
+    private CategoriaResponse toResponse(Categoria c) {
+        return CategoriaResponse.builder()
+                .id(c.getId())
+                .nombre(c.getNombre())
+                .descripcion(c.getDescripcion())
+                .build();
+    }
+}

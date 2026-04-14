@@ -1,5 +1,7 @@
 package com.trekking.ecommerce.controller;
 
+import com.trekking.ecommerce.dto.DescuentoRequest;
+import com.trekking.ecommerce.dto.DescuentoResponse;
 import com.trekking.ecommerce.model.Descuento;
 import com.trekking.ecommerce.service.DescuentoService;
 import jakarta.validation.Valid;
@@ -26,23 +28,24 @@ public class DescuentoController {
     private final DescuentoService descuentoService;
 
     @GetMapping
-    public ResponseEntity<List<Descuento>> findAll() {
-        return ResponseEntity.ok(descuentoService.findAll());
+    public ResponseEntity<List<DescuentoResponse>> findAll() {
+        return ResponseEntity.ok(descuentoService.findAll().stream().map(this::toResponse).toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Descuento> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(descuentoService.findById(id));
+    public ResponseEntity<DescuentoResponse> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(descuentoService.findById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Descuento> create(@Valid @RequestBody Descuento descuento) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(descuentoService.create(descuento));
+    public ResponseEntity<DescuentoResponse> create(@Valid @RequestBody DescuentoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(descuentoService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Descuento> update(@PathVariable Long id, @Valid @RequestBody Descuento descuento) {
-        return ResponseEntity.ok(descuentoService.update(id, descuento));
+    public ResponseEntity<DescuentoResponse> update(@PathVariable Long id,
+            @Valid @RequestBody DescuentoRequest request) {
+        return ResponseEntity.ok(toResponse(descuentoService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
@@ -60,5 +63,16 @@ public class DescuentoController {
     public ResponseEntity<BigDecimal> calcular(@PathVariable Long id, @RequestParam BigDecimal monto) {
         return ResponseEntity.ok(descuentoService.calcularDescuento(id, monto));
     }
-}
 
+    private DescuentoResponse toResponse(Descuento d) {
+        return DescuentoResponse.builder()
+                .id(d.getId())
+                .tipo(d.getTipo())
+                .valor(d.getValor())
+                .fechaInicio(d.getFechaInicio())
+                .fechaFin(d.getFechaFin())
+                .estado(d.getEstado())
+                .porcentaje(d.getPorcentaje())
+                .build();
+    }
+}

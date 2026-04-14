@@ -1,5 +1,7 @@
 package com.trekking.ecommerce.controller;
 
+import com.trekking.ecommerce.dto.VarianteProductoRequest;
+import com.trekking.ecommerce.dto.VarianteProductoResponse;
 import com.trekking.ecommerce.model.VarianteProducto;
 import com.trekking.ecommerce.service.VarianteProductoService;
 import jakarta.validation.Valid;
@@ -26,23 +28,27 @@ public class VarianteProductoController {
     private final VarianteProductoService varianteProductoService;
 
     @GetMapping
-    public ResponseEntity<List<VarianteProducto>> findAll() {
-        return ResponseEntity.ok(varianteProductoService.findAll());
+    public ResponseEntity<List<VarianteProductoResponse>> findAll() {
+        return ResponseEntity.ok(varianteProductoService.findAll().stream()
+                .map(this::toResponse).toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<VarianteProducto> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(varianteProductoService.findById(id));
+    public ResponseEntity<VarianteProductoResponse> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(toResponse(varianteProductoService.findById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<VarianteProducto> create(@Valid @RequestBody VarianteProducto variante) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(varianteProductoService.create(variante));
+    public ResponseEntity<VarianteProductoResponse> create(
+            @Valid @RequestBody VarianteProductoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(toResponse(varianteProductoService.create(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<VarianteProducto> update(@PathVariable Long id, @Valid @RequestBody VarianteProducto variante) {
-        return ResponseEntity.ok(varianteProductoService.update(id, variante));
+    public ResponseEntity<VarianteProductoResponse> update(@PathVariable Long id,
+            @Valid @RequestBody VarianteProductoRequest request) {
+        return ResponseEntity.ok(toResponse(varianteProductoService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
@@ -57,13 +63,23 @@ public class VarianteProductoController {
     }
 
     @GetMapping("/{id}/stock/disponible")
-    public ResponseEntity<Boolean> tieneStock(@PathVariable Long id, @RequestParam Integer cantidad) {
+    public ResponseEntity<Boolean> tieneStock(@PathVariable Long id,
+            @RequestParam Integer cantidad) {
         return ResponseEntity.ok(varianteProductoService.tieneStock(id, cantidad));
     }
 
-    @PostMapping("/{id}/stock/descontar")
-    public ResponseEntity<VarianteProducto> descontarStock(@PathVariable Long id, @RequestParam Integer cantidad) {
-        return ResponseEntity.ok(varianteProductoService.descontarStock(id, cantidad));
+    private VarianteProductoResponse toResponse(VarianteProducto v) {
+        return VarianteProductoResponse.builder()
+                .id(v.getId())
+                .productoId(v.getProducto().getId())
+                .productoNombre(v.getProducto().getNombre())
+                .color(v.getColor())
+                .talla(v.getTalla())
+                .material(v.getMaterial())
+                .peso(v.getPeso())
+                .stock(v.getStock())
+                .precio(v.getPrecio())
+                .estacion(v.getEstacion())
+                .build();
     }
 }
-
