@@ -1,10 +1,13 @@
 package com.trekking.ecommerce.service.impl;
 
 import com.trekking.ecommerce.dto.DescuentoRequest;
+import com.trekking.ecommerce.exception.BusinessRuleException;
 import com.trekking.ecommerce.exception.ResourceNotFoundException;
 import com.trekking.ecommerce.model.Descuento;
+import com.trekking.ecommerce.model.enums.EstadoCarrito;
 import com.trekking.ecommerce.model.enums.EstadoDescuento;
 import com.trekking.ecommerce.model.enums.TipoDescuento;
+import com.trekking.ecommerce.repository.CarritoRepository;
 import com.trekking.ecommerce.repository.DescuentoRepository;
 import com.trekking.ecommerce.service.DescuentoService;
 import java.math.BigDecimal;
@@ -20,10 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class DescuentoServiceImpl implements DescuentoService {
 
     private final DescuentoRepository descuentoRepository;
+    private final CarritoRepository carritoRepository;
 
     @Override
     public List<Descuento> findAll() {
         return descuentoRepository.findAll();
+    }
+
+    @Override
+    public List<Descuento> findActivos() {
+        return descuentoRepository.findByEstado(EstadoDescuento.ACTIVO);
     }
 
     @Override
@@ -35,7 +44,9 @@ public class DescuentoServiceImpl implements DescuentoService {
     @Override
     @Transactional
     public Descuento create(DescuentoRequest request) {
+        validarReglas(request);
         Descuento descuento = Descuento.builder()
+                .nombre(request.getNombre())
                 .tipo(request.getTipo())
                 .valor(request.getValor())
                 .fechaInicio(request.getFechaInicio())
@@ -49,7 +60,9 @@ public class DescuentoServiceImpl implements DescuentoService {
     @Override
     @Transactional
     public Descuento update(Long id, DescuentoRequest request) {
+        validarReglas(request);
         Descuento actual = findById(id);
+        actual.setNombre(request.getNombre());
         actual.setTipo(request.getTipo());
         actual.setValor(request.getValor());
         actual.setFechaInicio(request.getFechaInicio());
@@ -63,6 +76,11 @@ public class DescuentoServiceImpl implements DescuentoService {
     @Transactional
     public void delete(Long id) {
         findById(id);
+        if (carritoRepository.existsByDescuentoIdAndEstado(id, EstadoCarrito.ACTIVO)) {
+            throw new BusinessRuleException(
+                    "No se puede eliminar el descuento id " + id
+                            + " porque está siendo usado por uno o más carritos activos");
+        }
         descuentoRepository.deleteById(id);
     }
 
@@ -88,5 +106,36 @@ public class DescuentoServiceImpl implements DescuentoService {
         return descuento.getEstado() == EstadoDescuento.ACTIVO
                 && !hoy.isBefore(descuento.getFechaInicio())
                 && !hoy.isAfter(descuento.getFechaFin());
+    }
+
+    @Override
+    @Transactional
+    public int expirarVencidos() {
+        List<Descuento> expirados = descuentoRepository.findActivosExpirados(LocalDate.now());
+        expirados.forEach(d -> d.setEstado(EstadoDescuento.EXPIRADO));
+        descuentoRepository.saveAll(expirados);
+        return expirados.size();
+    }
+
+    private void validarReglas(DescuentoRequest request) {
+        if (request.getFechaFin().isBefore(request.getFechaInicio())) {
+            throw new BusinessRuleException(
+                    "La fecha de fin debe ser posterior o igual a la fecha de inicio");
+        }
+        if (request.getTipo() == TipoDescuento.PORCENTAJE) {
+            if (request.getPorcentaje() == null) {
+                throw new BusinessRuleException(
+                        "El campo 'porcentaje' es obligatorio cuando el tipo es PORCENTAJE");
+            }
+            if (request.getPorcentaje() <= 0 || request.getPorcentaje() > 100) {
+                throw new BusinessRuleException(
+                        "El porcentaje debe ser mayor a 0 y máximo 100");
+            }
+        }
+        if (request.getTipo() == TipoDescuento.FIJO
+                && request.getValor().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessRuleException(
+                    "El valor del descuento fijo debe ser mayor a 0");
+        }
     }
 }

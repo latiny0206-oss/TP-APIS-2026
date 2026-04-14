@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface CarritoService {
     List<Carrito> findAll();
+    List<Carrito> findByUsuario(Long usuarioId);
     Carrito findById(Long id);
     Carrito create(CarritoRequest request);
     Carrito update(Long id, CarritoRequest request);
@@ -20,4 +21,5 @@ public interface CarritoService {
     void vaciarCarrito(Long idCarrito);
     List<ItemCarrito> obtenerItems(Long idCarrito);
     Orden realizarCompra(Long idCarrito);
+    int vaciarCarritosAbandonados(int diasInactividad);
 }

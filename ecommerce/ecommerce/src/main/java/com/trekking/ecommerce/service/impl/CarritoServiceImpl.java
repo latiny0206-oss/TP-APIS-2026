@@ -49,6 +49,11 @@ public class CarritoServiceImpl implements CarritoService {
     }
 
     @Override
+    public List<Carrito> findByUsuario(Long usuarioId) {
+        return carritoRepository.findByUsuarioId(usuarioId);
+    }
+
+    @Override
     public Carrito findById(Long id) {
         return carritoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Carrito", id));
@@ -190,6 +195,20 @@ public class CarritoServiceImpl implements CarritoService {
     public List<ItemCarrito> obtenerItems(Long idCarrito) {
         findById(idCarrito);
         return itemCarritoRepository.findByCarritoId(idCarrito);
+    }
+
+    @Override
+    @Transactional
+    public int vaciarCarritosAbandonados(int diasInactividad) {
+        LocalDateTime limite = LocalDateTime.now().minusDays(diasInactividad);
+        List<Carrito> inactivos = carritoRepository.findActivosNoModificadosDesde(limite);
+        for (Carrito carrito : inactivos) {
+            itemCarritoRepository.deleteAll(itemCarritoRepository.findByCarritoId(carrito.getId()));
+            carrito.setEstado(EstadoCarrito.ABANDONADO);
+            carrito.setMontoTotal(BigDecimal.ZERO);
+            carritoRepository.save(carrito);
+        }
+        return inactivos.size();
     }
 
     /**

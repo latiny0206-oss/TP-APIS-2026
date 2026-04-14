@@ -32,6 +32,11 @@ public class DescuentoController {
         return ResponseEntity.ok(descuentoService.findAll().stream().map(this::toResponse).toList());
     }
 
+    @GetMapping("/activos")
+    public ResponseEntity<List<DescuentoResponse>> findActivos() {
+        return ResponseEntity.ok(descuentoService.findActivos().stream().map(this::toResponse).toList());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<DescuentoResponse> findById(@PathVariable Long id) {
         return ResponseEntity.ok(toResponse(descuentoService.findById(id)));
@@ -67,6 +72,7 @@ public class DescuentoController {
     private DescuentoResponse toResponse(Descuento d) {
         return DescuentoResponse.builder()
                 .id(d.getId())
+                .nombre(d.getNombre())
                 .tipo(d.getTipo())
                 .valor(d.getValor())
                 .fechaInicio(d.getFechaInicio())

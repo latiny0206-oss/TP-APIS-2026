@@ -12,10 +12,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -54,6 +57,9 @@ public class Carrito {
     @Column(name = "monto_total", nullable = false, precision = 10, scale = 2)
     private BigDecimal montoTotal;
 
+    @Column(name = "fecha_ultima_modificacion")
+    private LocalDateTime fechaUltimaModificacion;
+
     @JsonIgnore
     @OneToMany(mappedBy = "carrito")
     private List<ItemCarrito> items;
@@ -61,5 +67,11 @@ public class Carrito {
     @JsonIgnore
     @OneToMany(mappedBy = "carrito")
     private List<Orden> ordenes;
+
+    @PrePersist
+    @PreUpdate
+    protected void actualizarFecha() {
+        this.fechaUltimaModificacion = LocalDateTime.now();
+    }
 }
 

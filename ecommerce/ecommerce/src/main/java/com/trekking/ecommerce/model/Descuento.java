@@ -13,7 +13,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -34,6 +36,11 @@ public class Descuento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_descuento")
     private Long id;
+
+    @NotBlank
+    @Size(max = 100)
+    @Column(nullable = false, length = 100)
+    private String nombre;
 
     @NotNull
     @Enumerated(EnumType.STRING)

@@ -7,6 +7,8 @@ import com.trekking.ecommerce.dto.OrdenResponse;
 import com.trekking.ecommerce.model.Carrito;
 import com.trekking.ecommerce.model.ItemCarrito;
 import com.trekking.ecommerce.model.Orden;
+import com.trekking.ecommerce.model.Usuario;
+import com.trekking.ecommerce.repository.UsuarioRepository;
 import com.trekking.ecommerce.service.CarritoService;
 import com.trekking.ecommerce.service.OrdenService;
 import jakarta.validation.Valid;
@@ -15,6 +17,9 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,30 +37,41 @@ public class CarritoController {
 
     private final CarritoService carritoService;
     private final OrdenService ordenService;
+    private final UsuarioRepository usuarioRepository;
 
     @GetMapping
     public ResponseEntity<List<CarritoResponse>> findAll() {
-        return ResponseEntity.ok(carritoService.findAll().stream().map(this::toResponse).toList());
+        List<Carrito> carritos = esAdmin()
+                ? carritoService.findAll()
+                : carritoService.findByUsuario(getUsuarioAutenticado().getId());
+        return ResponseEntity.ok(carritos.stream().map(this::toResponse).toList());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CarritoResponse> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(toResponse(carritoService.findById(id)));
+        Carrito carrito = carritoService.findById(id);
+        validarPropietario(carrito.getUsuario().getId());
+        return ResponseEntity.ok(toResponse(carrito));
     }
 
     @PostMapping
     public ResponseEntity<CarritoResponse> create(@Valid @RequestBody CarritoRequest request) {
+        request.setUsuarioId(getUsuarioAutenticado().getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(carritoService.create(request)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<CarritoResponse> update(@PathVariable Long id,
             @Valid @RequestBody CarritoRequest request) {
+        Carrito carrito = carritoService.findById(id);
+        validarPropietario(carrito.getUsuario().getId());
+        request.setUsuarioId(carrito.getUsuario().getId());
         return ResponseEntity.ok(toResponse(carritoService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        validarPropietario(carritoService.findById(id).getUsuario().getId());
         carritoService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -65,11 +81,13 @@ public class CarritoController {
             @PathVariable Long id,
             @RequestParam Long idVariante,
             @RequestParam Integer cantidad) {
+        validarPropietario(carritoService.findById(id).getUsuario().getId());
         return ResponseEntity.ok(toItemResponse(carritoService.agregarItem(id, idVariante, cantidad)));
     }
 
     @DeleteMapping("/{id}/items/{idItem}")
     public ResponseEntity<Void> eliminarItem(@PathVariable Long id, @PathVariable Long idItem) {
+        validarPropietario(carritoService.findById(id).getUsuario().getId());
         carritoService.eliminarItem(id, idItem);
         return ResponseEntity.noContent().build();
     }
@@ -79,31 +97,59 @@ public class CarritoController {
             @PathVariable Long id,
             @PathVariable Long idItem,
             @RequestParam Integer cantidad) {
+        validarPropietario(carritoService.findById(id).getUsuario().getId());
         return ResponseEntity.ok(toItemResponse(carritoService.actualizarItem(id, idItem, cantidad)));
     }
 
     @GetMapping("/{id}/items")
     public ResponseEntity<List<ItemCarritoResponse>> obtenerItems(@PathVariable Long id) {
+        validarPropietario(carritoService.findById(id).getUsuario().getId());
         return ResponseEntity.ok(carritoService.obtenerItems(id).stream()
                 .map(this::toItemResponse).toList());
     }
 
     @GetMapping("/{id}/total")
     public ResponseEntity<BigDecimal> calcularTotal(@PathVariable Long id) {
+        validarPropietario(carritoService.findById(id).getUsuario().getId());
         return ResponseEntity.ok(carritoService.calcularTotal(id));
     }
 
     @PostMapping("/{id}/vaciar")
     public ResponseEntity<Void> vaciar(@PathVariable Long id) {
+        validarPropietario(carritoService.findById(id).getUsuario().getId());
         carritoService.vaciarCarrito(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/checkout")
     public ResponseEntity<OrdenResponse> realizarCompra(@PathVariable Long id) {
+        validarPropietario(carritoService.findById(id).getUsuario().getId());
         Orden orden = carritoService.realizarCompra(id);
         return ResponseEntity.ok(toOrdenResponse(orden));
     }
+
+    // ─── Helpers de seguridad ────────────────────────────────────────────────
+
+    private boolean esAdmin() {
+        return SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    private Usuario getUsuarioAutenticado() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return usuarioRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new AccessDeniedException("Usuario autenticado no encontrado"));
+    }
+
+    private void validarPropietario(Long propietarioId) {
+        if (esAdmin()) return;
+        if (!getUsuarioAutenticado().getId().equals(propietarioId)) {
+            throw new AccessDeniedException("No tenés permiso para acceder a este recurso");
+        }
+    }
+
+    // ─── Mapeo a DTOs ────────────────────────────────────────────────────────
 
     private CarritoResponse toResponse(Carrito c) {
         List<ItemCarritoResponse> items = carritoService.obtenerItems(c.getId()).stream()
@@ -115,6 +161,7 @@ public class CarritoController {
                 .descuentoId(c.getDescuento() != null ? c.getDescuento().getId() : null)
                 .estado(c.getEstado())
                 .montoTotal(c.getMontoTotal())
+                .fechaUltimaModificacion(c.getFechaUltimaModificacion())
                 .items(items)
                 .build();
     }

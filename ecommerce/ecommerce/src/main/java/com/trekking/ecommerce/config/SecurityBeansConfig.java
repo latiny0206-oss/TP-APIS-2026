@@ -92,6 +92,7 @@ public class SecurityBeansConfig {
 
                 // Usuarios y descuentos (solo ADMIN)
                 .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/descuentos/activos").authenticated()
                 .requestMatchers("/api/descuentos/**").hasRole("ADMIN")
 
                 // Todo lo demás requiere autenticación (carritos, órdenes, etc.)
