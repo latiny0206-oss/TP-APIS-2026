@@ -9,6 +9,7 @@ import com.trekking.ecommerce.service.ItemCarritoService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -19,11 +20,13 @@ public class ItemCarritoServiceImpl implements ItemCarritoService {
     private final VarianteProductoRepository varianteProductoRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<ItemCarrito> findAll() {
         return itemCarritoRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ItemCarrito findById(Long id) {
         return itemCarritoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ItemCarrito no encontrado: " + id));

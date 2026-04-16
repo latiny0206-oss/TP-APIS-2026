@@ -17,11 +17,13 @@ public class CategoriaServiceImpl implements CategoriaService {
     private final CategoriaRepository categoriaRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<Categoria> findAll() {
         return categoriaRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Categoria findById(Long id) {
         return categoriaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria", id));

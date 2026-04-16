@@ -21,11 +21,13 @@ public class VarianteProductoServiceImpl implements VarianteProductoService {
     private final ProductoService productoService;
 
     @Override
+    @Transactional(readOnly = true)
     public List<VarianteProducto> findAll() {
         return varianteProductoRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public VarianteProducto findById(Long id) {
         return varianteProductoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("VarianteProducto", id));
@@ -70,11 +72,13 @@ public class VarianteProductoServiceImpl implements VarianteProductoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BigDecimal getPrecio(Long id) {
         return findById(id).getPrecio();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public boolean tieneStock(Long id, Integer cantidad) {
         return findById(id).getStock() >= cantidad;
     }

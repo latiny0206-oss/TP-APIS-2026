@@ -26,16 +26,19 @@ public class DescuentoServiceImpl implements DescuentoService {
     private final CarritoRepository carritoRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<Descuento> findAll() {
         return descuentoRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Descuento> findActivos() {
         return descuentoRepository.findByEstado(EstadoDescuento.ACTIVO);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Descuento findById(Long id) {
         return descuentoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Descuento", id));
@@ -85,6 +88,7 @@ public class DescuentoServiceImpl implements DescuentoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BigDecimal calcularDescuento(Long id, BigDecimal monto) {
         Descuento descuento = findById(id);
         if (!estaVigente(id)) {
@@ -100,6 +104,7 @@ public class DescuentoServiceImpl implements DescuentoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public boolean estaVigente(Long id) {
         Descuento descuento = findById(id);
         LocalDate hoy = LocalDate.now();

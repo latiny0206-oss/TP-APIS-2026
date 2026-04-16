@@ -44,16 +44,19 @@ public class CarritoServiceImpl implements CarritoService {
     private final UsuarioRepository usuarioRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<Carrito> findAll() {
         return carritoRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Carrito> findByUsuario(Long usuarioId) {
         return carritoRepository.findByUsuarioId(usuarioId);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Carrito findById(Long id) {
         return carritoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Carrito", id));
@@ -157,6 +160,7 @@ public class CarritoServiceImpl implements CarritoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BigDecimal calcularTotal(Long idCarrito) {
         BigDecimal subtotal = obtenerItems(idCarrito).stream()
                 .map(item -> item.getPrecioUnitario().multiply(BigDecimal.valueOf(item.getCantidad())))
@@ -192,6 +196,7 @@ public class CarritoServiceImpl implements CarritoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ItemCarrito> obtenerItems(Long idCarrito) {
         findById(idCarrito);
         return itemCarritoRepository.findByCarritoId(idCarrito);

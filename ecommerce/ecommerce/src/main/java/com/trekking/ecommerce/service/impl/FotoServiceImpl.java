@@ -19,17 +19,20 @@ public class FotoServiceImpl implements FotoService {
     private final ProductoService productoService;
 
     @Override
+    @Transactional(readOnly = true)
     public List<Foto> findAll() {
         return fotoRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Foto> findByProducto(Long productoId) {
         productoService.findById(productoId);
         return fotoRepository.findByProductoId(productoId);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Foto findById(Long id) {
         return fotoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Foto", id));

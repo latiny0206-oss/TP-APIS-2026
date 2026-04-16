@@ -5,8 +5,8 @@ import com.trekking.ecommerce.dto.OrdenResponse;
 import com.trekking.ecommerce.model.ItemOrden;
 import com.trekking.ecommerce.model.Orden;
 import com.trekking.ecommerce.model.Usuario;
-import com.trekking.ecommerce.repository.UsuarioRepository;
 import com.trekking.ecommerce.service.OrdenService;
+import com.trekking.ecommerce.service.UsuarioService;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrdenController {
 
     private final OrdenService ordenService;
-    private final UsuarioRepository usuarioRepository;
+    private final UsuarioService usuarioService;
 
     @GetMapping
     public ResponseEntity<List<OrdenResponse>> findAll() {
@@ -93,8 +93,7 @@ public class OrdenController {
 
     private Usuario getUsuarioAutenticado() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return usuarioRepository.findByUsername(auth.getName())
-                .orElseThrow(() -> new AccessDeniedException("Usuario autenticado no encontrado"));
+        return usuarioService.findByUsername(auth.getName());
     }
 
     private void validarPropietario(Long propietarioId) {

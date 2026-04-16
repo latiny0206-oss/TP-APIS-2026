@@ -28,11 +28,13 @@ public class OrdenServiceImpl implements OrdenService {
     private final DescuentoRepository descuentoRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<Orden> findAll() {
         return ordenRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Orden findById(Long id) {
         return ordenRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Orden", id));
@@ -109,17 +111,20 @@ public class OrdenServiceImpl implements OrdenService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BigDecimal getMontoFinal(Long id) {
         return findById(id).getMontoFinal();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ItemOrden> obtenerItems(Long id) {
         findById(id);
         return itemOrdenRepository.findByOrdenId(id);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Orden> findByUsuario(Long idUsuario) {
         return ordenRepository.findByUsuarioId(idUsuario);
     }

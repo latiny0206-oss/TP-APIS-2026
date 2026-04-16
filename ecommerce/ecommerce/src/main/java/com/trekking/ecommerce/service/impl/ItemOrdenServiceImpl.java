@@ -9,6 +9,7 @@ import com.trekking.ecommerce.service.ItemOrdenService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -19,11 +20,13 @@ public class ItemOrdenServiceImpl implements ItemOrdenService {
     private final VarianteProductoRepository varianteProductoRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<ItemOrden> findAll() {
         return itemOrdenRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ItemOrden findById(Long id) {
         return itemOrdenRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ItemOrden no encontrado: " + id));

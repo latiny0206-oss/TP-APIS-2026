@@ -17,11 +17,13 @@ public class MarcaServiceImpl implements MarcaService {
     private final MarcaRepository marcaRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<Marca> findAll() {
         return marcaRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Marca findById(Long id) {
         return marcaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Marca", id));

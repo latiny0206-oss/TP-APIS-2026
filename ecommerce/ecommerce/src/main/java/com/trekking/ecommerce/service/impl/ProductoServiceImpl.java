@@ -24,28 +24,33 @@ public class ProductoServiceImpl implements ProductoService {
     private final CategoriaService categoriaService;
 
     @Override
+    @Transactional(readOnly = true)
     public List<Producto> findAll() {
         return productoRepository.findAll();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Producto> findByCategoria(Long categoriaId) {
         categoriaService.findById(categoriaId);
         return productoRepository.findByCategoriaId(categoriaId);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Producto> findByMarca(Long marcaId) {
         marcaService.findById(marcaId);
         return productoRepository.findByMarcaId(marcaId);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Producto> findByEstado(EstadoProducto estado) {
         return productoRepository.findByEstado(estado);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Producto findById(Long id) {
         return productoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto", id));
@@ -86,6 +91,7 @@ public class ProductoServiceImpl implements ProductoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public boolean estaDisponible(Long id) {
         Producto producto = findById(id);
         if (producto.getEstado() != EstadoProducto.ACTIVO) {

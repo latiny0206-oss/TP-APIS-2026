@@ -2,15 +2,16 @@ package com.trekking.ecommerce.controller;
 
 import com.trekking.ecommerce.dto.CarritoRequest;
 import com.trekking.ecommerce.dto.CarritoResponse;
+import com.trekking.ecommerce.dto.ItemCarritoRequest;
 import com.trekking.ecommerce.dto.ItemCarritoResponse;
 import com.trekking.ecommerce.dto.OrdenResponse;
 import com.trekking.ecommerce.model.Carrito;
 import com.trekking.ecommerce.model.ItemCarrito;
 import com.trekking.ecommerce.model.Orden;
 import com.trekking.ecommerce.model.Usuario;
-import com.trekking.ecommerce.repository.UsuarioRepository;
 import com.trekking.ecommerce.service.CarritoService;
 import com.trekking.ecommerce.service.OrdenService;
+import com.trekking.ecommerce.service.UsuarioService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
@@ -37,7 +38,7 @@ public class CarritoController {
 
     private final CarritoService carritoService;
     private final OrdenService ordenService;
-    private final UsuarioRepository usuarioRepository;
+    private final UsuarioService usuarioService;
 
     @GetMapping
     public ResponseEntity<List<CarritoResponse>> findAll() {
@@ -79,10 +80,10 @@ public class CarritoController {
     @PostMapping("/{id}/items")
     public ResponseEntity<ItemCarritoResponse> agregarItem(
             @PathVariable Long id,
-            @RequestParam Long idVariante,
-            @RequestParam Integer cantidad) {
+            @RequestBody @Valid ItemCarritoRequest request) {
         validarPropietario(carritoService.findById(id).getUsuario().getId());
-        return ResponseEntity.ok(toItemResponse(carritoService.agregarItem(id, idVariante, cantidad)));
+        return ResponseEntity.ok(toItemResponse(
+                carritoService.agregarItem(id, request.getIdVariante(), request.getCantidad())));
     }
 
     @DeleteMapping("/{id}/items/{idItem}")
@@ -138,8 +139,7 @@ public class CarritoController {
 
     private Usuario getUsuarioAutenticado() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return usuarioRepository.findByUsername(auth.getName())
-                .orElseThrow(() -> new AccessDeniedException("Usuario autenticado no encontrado"));
+        return usuarioService.findByUsername(auth.getName());
     }
 
     private void validarPropietario(Long propietarioId) {

@@ -20,11 +20,13 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final PasswordEncoder passwordEncoder;
 
     @Override
+    @Transactional(readOnly = true)
     public List<UsuarioResponse> findAll() {
         return usuarioRepository.findAll().stream().map(this::toResponse).toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UsuarioResponse findById(Long id) {
         return toResponse(findEntityById(id));
     }
@@ -65,6 +67,13 @@ public class UsuarioServiceImpl implements UsuarioService {
     public void delete(Long id) {
         findEntityById(id);
         usuarioRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Usuario findByUsername(String username) {
+        return usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario con username '" + username + "' no encontrado"));
     }
 
     public Usuario findEntityById(Long id) {
