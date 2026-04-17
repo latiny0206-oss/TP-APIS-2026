@@ -6,9 +6,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,12 +33,18 @@ public class Foto {
     @JoinColumn(name = "id_producto", nullable = false)
     private Producto producto;
 
-    @NotBlank
     @Column(nullable = false, length = 255)
     private String nombre;
+
+    @Column(name = "tipo_contenido", nullable = false, length = 100)
+    private String tipoContenido;
 
     @NotNull
     @Column(nullable = false)
     private Integer orden;
+
+    @Lob
+    @Column(nullable = false, columnDefinition = "LONGBLOB")
+    private byte[] datos;
 }
 

@@ -9,5 +9,7 @@ public class FotoResponse {
     Long id;
     Long productoId;
     String nombre;
+    String tipoContenido;
     Integer orden;
+    String datos;
 }
