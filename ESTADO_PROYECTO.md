@@ -11,7 +11,8 @@ descuentos. La arquitectura sigue el patrón de capas clásico de Spring Boot
 (Controller → Service → Repository → Entity).
 
 El proyecto se encuentra en un estado **funcional, seguro y documentado**: la base de
-datos MySQL está conectada y operativa, todas las tablas fueron creadas por Hibernate,
+datos MySQL está conectada y operativa; en el perfil por defecto Hibernate usa
+`ddl-auto=validate` (el esquema debe existir o alinearse con las entidades),
 la autenticación JWT está completamente implementada con rutas protegidas por rol,
 CORS está configurado, y Swagger UI está disponible en `/swagger-ui.html`.
 
@@ -24,17 +25,19 @@ CORS está configurado, y Swagger UI está disponible en `/swagger-ui.html`.
 | Spring Boot version | 3.5.12                                                        |
 | Java version        | JDK 17 (Eclipse Temurin)                                      |
 | Base de datos (prod)| MySQL 9.6 — `trekking_ecommerce` en `localhost:3306`          |
-| Base de datos (test)| H2 en memoria — `trekking_test`                               |
+| Base de datos (test)| H2 en memoria — `testdb` (ver `application-test.properties`)   |
 | Puerto              | 8080                                                          |
 | Perfiles definidos  | `(default)`, `test`                                           |
-| DDL auto            | `update` (prod) / `create-drop` (test)                        |
-| JWT secret          | Hardcodeado en `application.properties` ⚠️                    |
+| DDL auto            | `validate` (app principal) / `create-drop` (perfil `test`) ⚠️ |
+| JWT secret          | `${JWT_SECRET:...}` en `application.properties` ⚠️ (fallback en repo) |
+| Credenciales BD     | `${DB_USERNAME:root}` / `${DB_PASSWORD:...}` ⚠️               |
 | JWT expiración      | 86 400 000 ms (24 h)                                          |
 | JWT librería        | `io.jsonwebtoken:jjwt` 0.12.3                                 |
 | Swagger UI          | `http://localhost:8080/swagger-ui.html` ✅                     |
 | OpenAPI JSON        | `http://localhost:8080/api-docs`                               |
 | CORS                | Habilitado para todos los orígenes (`allowedOriginPatterns=*`) |
 | ORM                 | Hibernate 6 / Spring Data JPA                                 |
+| Multipart           | Hasta 10 MB por archivo / 30 MB por request (`application.properties`) |
 | Gestor de build     | Maven (wrapper `mvnw`)                                        |
 
 ---
@@ -88,8 +91,11 @@ CORS está configurado, y Swagger UI está disponible en `/swagger-ui.html`.
 ✅ Captura precio al momento de la compra (snapshot correcto).
 
 ### Foto
-**Atributos:** `id`, `nombre`, `orden`.
+**Atributos:** `id`, `nombre` (nombre de archivo), `tipoContenido` (MIME), `orden`,
+`datos` (`LONGBLOB` — bytes de la imagen).
 **Relaciones:** `@ManyToOne → Producto`.
+**Nota:** Las imágenes se persisten en base de datos; el API expone los bytes en
+`FotoResponse` codificados en Base64 en el campo `datos`.
 
 ### Descuento
 **Atributos:** `id`, `nombre`, `tipo` (`PORCENTAJE`/`FIJO`), `valor`, `porcentaje`,
@@ -115,7 +121,7 @@ con enum, aceptado por el equipo.
 | `Orden`            | ✅      | Correcto. `@JsonIgnore` en colección de items.                                       |
 | `ItemOrden`        | ✅      | Snapshot de precio correcto con `precioAlMomento`.                                   |
 | `VarianteProducto` | ✅      | Typo `OTONIO` corregido a `OTONO` en enum `Estacion`. `@JsonIgnore` en colecciones. |
-| `Foto`             | ✅      | Correcta.                                                                            |
+| `Foto`             | ✅      | Almacenamiento binario (`@Lob` byte[]), `tipoContenido`, nombre de archivo.         |
 | `Descuento`        | ✅      | Campo `nombre` agregado. Diseño de dos campos (`valor` + `porcentaje`) validado. 🔍  |
 
 ### 4.2 Repository
@@ -126,9 +132,9 @@ con enum, aceptado por el equipo.
 | `ProductoRepository`        | ✅      | `findByCategoriaId`, `findByMarcaId`, `findByEstado`.                |
 | `CategoriaRepository`       | ✅      | CRUD suficiente.                                                     |
 | `MarcaRepository`           | ✅      | CRUD suficiente.                                                     |
-| `CarritoRepository`         | ✅      | `findByUsuarioId`, `findByUsuarioIdAndEstado`, `findActivosNoModificadosDesde`, `existsByDescuentoIdAndEstado`. |
+| `CarritoRepository`         | ✅      | `findByUsuarioId`, `findByUsuarioIdConItems` (JOIN FETCH ítems/variante/producto), `findAllConItems`, `findByUsuarioIdAndEstado`, `findActivosNoModificadosDesde`, `existsByDescuentoIdAndEstado`. |
 | `ItemCarritoRepository`     | ✅      | `findByCarritoId`, `findByCarritoIdAndVarianteId`.                   |
-| `OrdenRepository`           | ✅      | `findByUsuarioId` implementado correctamente.                        |
+| `OrdenRepository`           | ✅      | `findByUsuarioId`, `findByUsuarioIdConItems`, `findAllConItems` (JOIN FETCH ítems/variante/producto). |
 | `ItemOrdenRepository`       | ✅      | `findByOrdenId` suficiente.                                          |
 | `VarianteProductoRepository`| ✅      | `findByProductoId` presente.                                         |
 | `FotoRepository`            | ✅      | `findByProductoId`.                                                  |
@@ -138,31 +144,32 @@ con enum, aceptado por el equipo.
 
 | Clase                        | Estado | Observaciones                                                                                                                        |
 |------------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
-| `UsuarioServiceImpl`         | ✅      | DTOs, BCrypt, `@Transactional`. `findEntityById()` interno para referencias JPA.                                                     |
+| `UsuarioServiceImpl`         | ✅      | DTOs, BCrypt, `@Transactional`. `findEntityById()` y `findByUsername()` (para JWT y `AuthenticatedController`).                  |
 | `ProductoServiceImpl`        | ✅      | Usa `MarcaService`/`CategoriaService`. Métodos `findByCategoria`, `findByMarca`, `findByEstado`. `@Transactional`.                   |
 | `CategoriaServiceImpl`       | ✅      | `CategoriaRequest`, `@Transactional`, `ResourceNotFoundException`.                                                                   |
 | `MarcaServiceImpl`           | ✅      | `MarcaRequest`, `@Transactional`, `ResourceNotFoundException`.                                                                       |
-| `CarritoServiceImpl`         | ✅      | Bug fix stock en `realizarCompra()`. Validación producto ACTIVO en `agregarItem()`. `vaciarCarritosAbandonados()`. `findByUsuario()`. |
+| `CarritoServiceImpl`         | ✅      | Bug fix stock en `realizarCompra()`. Validación producto ACTIVO en `agregarItem()`. `vaciarCarritosAbandonados()`. `findByUsuario()`, `findAllConItems()`, `findByUsuarioConItems()` para listados con ítems. |
 | `ItemCarritoServiceImpl`     | ✅      | Service interno. `ResourceNotFoundException` en todos los métodos. Validación de existencia en `delete()`.                           |
-| `OrdenServiceImpl`           | ✅      | `confirmar()` solo desde PENDIENTE. `cancelar()` bloqueado si ENTREGADA/CANCELADA. `@Transactional`.                                |
+| `OrdenServiceImpl`           | ✅      | `confirmar()` solo desde PENDIENTE. `cancelar()` bloqueado si ENTREGADA/CANCELADA. `findAllConItems()`, `findByUsuarioConItems()`. `@Transactional`. |
 | `ItemOrdenServiceImpl`       | ✅      | Service interno. `ResourceNotFoundException` en todos los métodos. Validación de existencia en `delete()`.                           |
 | `VarianteProductoServiceImpl`| ✅      | `VarianteProductoRequest`. `descontarStock()` con `BusinessRuleException`. `@Transactional`.                                         |
-| `FotoServiceImpl`            | ✅      | `FotoRequest`. Usa `ProductoService`. `findByProducto`. `@Transactional`.                                                            |
+| `FotoServiceImpl`            | ✅      | Alta/actualización vía `MultipartFile` (bytes + content type + nombre). `findByProducto`. `BusinessRuleException` si falla la lectura del archivo. |
 | `DescuentoServiceImpl`       | ✅      | Validaciones de negocio en `create`/`update` (fechas, tipo, valor). `delete` protegido contra uso activo. `findActivos()`. `expirarVencidos()`. |
 
 ### 4.4 Controller
 
 | Clase                       | Endpoints definidos                                                                                                                                    | Estado | Observaciones                                                                     |
 |-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|--------|-----------------------------------------------------------------------------------|
+| `AuthenticatedController`   | *(clase base abstracta, sin mapping)*                                                                                                                  | ✅      | `esAdmin()`, `getUsuarioAutenticado()`, `validarPropietario()`. Inyecta `UsuarioService`. |
 | `AuthController`            | `POST /api/auth/login`, `POST /api/auth/register`                                                                                                     | ✅      | Nuevo. Devuelve JWT + username + rol.                                             |
 | `UsuarioController`         | `GET /`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`                                                                                           | ✅      | Solo ADMIN (protegido por `SecurityFilterChain`).                                 |
 | `ProductoController`        | `GET /`, `GET /{id}`, `GET /categoria/{id}`, `GET /marca/{id}`, `GET /estado/{estado}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `GET /{id}/disponible` | ✅      | GETs públicos. Escrituras solo ADMIN.                                             |
 | `CategoriaController`       | `GET /`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`                                                                                           | ✅      | GETs públicos. Escrituras solo ADMIN.                                             |
 | `MarcaController`           | `GET /`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`                                                                                           | ✅      | GETs públicos. Escrituras solo ADMIN.                                             |
-| `CarritoController`         | CRUD + items + total + vaciar + checkout                                                                                                               | ✅      | Ownership enforcement: CLIENTE solo ve/modifica sus carritos. ADMIN accede a todos. `usuarioId` derivado del JWT. |
-| `OrdenController`           | `GET /`, `GET /{id}`, `DELETE /{id}`, `POST /{id}/confirmar`, `POST /{id}/cancelar`, `GET /{id}/monto-final`, `GET /{id}/items`, `GET /usuario/{id}` | ✅      | Ownership enforcement: CLIENTE solo ve/opera sus órdenes. ADMIN accede a todas. |
+| `CarritoController`         | `GET/POST /`, `GET/PUT/DELETE /{id}`, `POST/DELETE/PUT /{id}/items`, `GET /{id}/items`, `GET /{id}/total`, `POST /{id}/vaciar`, `POST /{id}/checkout` | ✅      | Extiende `AuthenticatedController`. Listados: ADMIN ve todo con ítems; CLIENTE solo sus carritos (`findByUsuarioConItems`). |
+| `OrdenController`           | `GET /`, `GET/DELETE /{id}`, `POST /{id}/confirmar`, `POST /{id}/cancelar`, `GET /{id}/monto-final`, `GET /{id}/items`, `GET /usuario/{idUsuario}` | ✅      | Extiende `AuthenticatedController`. Listados: ADMIN con ítems embebidos; CLIENTE solo sus órdenes (`findByUsuarioConItems`). |
 | `VarianteProductoController`| `GET /`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `GET /{id}/precio`, `GET /{id}/stock/disponible`                                         | ✅      | GETs públicos. Escrituras solo ADMIN.                                             |
-| `FotoController`            | `GET /`, `GET /{id}`, `GET /producto/{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`                                                                     | ✅      | GETs públicos. Escrituras solo ADMIN.                                             |
+| `FotoController`            | `GET /`, `GET /{id}`, `GET /producto/{id}`, `POST /` *(multipart)*, `PUT /{id}` *(multipart)*, `DELETE /{id}`                                         | ✅      | `POST`/`PUT`: `productoId`, `orden`, `archivo` (`MultipartFile`). GETs públicos. Escrituras solo ADMIN. |
 | `DescuentoController`       | `GET /`, `GET /activos`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `GET /{id}/vigente`, `GET /{id}/calcular`                                | ✅      | Solo ADMIN, excepto `GET /activos` (cualquier autenticado).                       |
 | `ItemCarritoController`     | —                                                                                                                                                      | ✅      | **Eliminado.** Items incluidos en `CarritoResponse`.                              |
 | `ItemOrdenController`       | —                                                                                                                                                      | ✅      | **Eliminado.** Items incluidos en `OrdenResponse`.                                |
@@ -179,8 +186,8 @@ con enum, aceptado por el equipo.
 | `CategoriaResponse`       | Output categoría                         | ✅      |
 | `MarcaRequest`            | Input crear/actualizar marca             | ✅      |
 | `MarcaResponse`           | Output marca                             | ✅      |
-| `FotoRequest`             | Input crear/actualizar foto              | ✅      |
-| `FotoResponse`            | Output foto                              | ✅      |
+| `FotoRequest`             | *(no usado en el API HTTP actual)*       | —       | Alta/edición vía `multipart/form-data` en `FotoController`.                        |
+| `FotoResponse`            | Output foto (`datos` en Base64)          | ✅      | Incluye `tipoContenido` y `datos` (string Base64).                               |
 | `VarianteProductoRequest` | Input crear/actualizar variante          | ✅      |
 | `VarianteProductoResponse`| Output variante con nombre de producto   | ✅      |
 | `ProductoRequest`         | Input crear/actualizar producto (IDs FK) | ✅      |
@@ -264,7 +271,7 @@ Acceso: `http://localhost:8080/swagger-ui.html`. Usar botón **Authorize** con
 | 1 | **Alta**  | ✅ Resuelto  | Bug de stock: `realizarCompra()` valida y descuenta stock dentro de `@Transactional`.                        |
 | 2 | **Alta**  | ✅ Resuelto  | Seguridad: `SecurityFilterChain` + JWT filter + rutas por rol implementados.                                 |
 | 3 | **Alta**  | ✅ Resuelto  | Integridad del modelo: `ItemOrdenController` e `ItemCarritoController` eliminados.                           |
-| 4 | **Alta**  | ⚠️ Pendiente | Secretos hardcodeados: JWT secret y contraseña de BD en `application.properties`.                            |
+| 4 | **Alta**  | ⚠️ Parcial   | `jwt.secret` y credenciales de BD admiten variables de entorno (`JWT_SECRET`, `DB_USERNAME`, `DB_PASSWORD`); siguen existiendo valores por defecto en el repo — no subir producción con defaults. |
 | 5 | **Alta**  | ✅ Resuelto  | `@Transactional` agregado a todos los métodos de escritura en todos los services.                            |
 | 6 | **Media** | ✅ Resuelto  | `GlobalExceptionHandler` cubre 404, 400, 409, 401, 403, 500.                                                |
 | 7 | **Media** | ✅ Resuelto  | Controllers usan DTOs de Request/Response. Entidades con `@JsonIgnore`.                                      |
@@ -288,8 +295,9 @@ Acceso: `http://localhost:8080/swagger-ui.html`. Usar botón **Authorize** con
 
 ## 6. Lo que falta implementar
 
-1. **Variables de entorno para secretos** — extraer `jwt.secret` y contraseña de BD
-   de `application.properties` hacia variables de entorno o `.env` no comiteado.
+1. **Variables de entorno para secretos** — el `pom` ya permite sobreescribir por entorno
+   (`JWT_SECRET`, `DB_USERNAME`, `DB_PASSWORD`); falta documentar en despliegue y evitar
+   defaults en producción (o usar solo `.env` / secret manager sin valores en el repo).
 
 2. **Anotaciones Swagger en controllers** — agregar `@Tag`, `@Operation`, `@ApiResponse`
    para documentar cada endpoint en la UI. Actualmente la UI muestra todos los endpoints
@@ -298,56 +306,49 @@ Acceso: `http://localhost:8080/swagger-ui.html`. Usar botón **Authorize** con
 3. **CORS en producción** — restringir `allowedOriginPatterns` al dominio real del
    frontend cuando se despliegue.
 
-4. **Cobertura de tests** — actualmente hay 1 test de integración. Faltan tests para:
+4. **Cobertura de tests** — además de `EcommerceApplicationTests` (carga de contexto),
+   existen pruebas unitarias de servicio: `CarritoServiceImplTest` y
+   `DescuentoServiceImplTest`. Siguen faltando tests de integración HTTP para:
    checkout (stock, total, estado de carrito), autenticación (login/register/token),
-   descuentos, transiciones de estado de orden, endpoints protegidos por rol, y
-   validación de ownership (acceso cruzado entre usuarios).
+   transiciones de estado de orden, endpoints protegidos por rol, y validación de
+   ownership (acceso cruzado entre usuarios).
 
 5. **Features pendientes (no críticas):**
    - Paginación en endpoints de colecciones (`Page<T>`).
    - ~~Lógica de expiración automática de descuentos (scheduled task).~~ ✅ Implementado en `DescuentoJob`.
    - ~~JOB de limpieza de carritos abandonados.~~ ✅ Implementado en `CarritoJob`.
-   - Gestión de imágenes real (S3 o almacenamiento en disco).
+   - CDN u objeto remoto (p. ej. S3) si se escala fuera del almacenamiento en MySQL.
 
 ---
 
-## 7. Cambios realizados en Fase 3
+## 7. Historial de cambios por fase
 
-## 8. Cambios realizados en Fase 4 (sesión actual — 2026-04-14)
+### 7.1 Fase 3 — Dominio y API base
+
+Modelado de entidades, repositorios Spring Data, servicios y primera capa REST (sin el detalle de commits aquí; el estado actual está en las secciones 3 a 5).
+
+### 7.2 Fase 4 — JWT, excepciones, Swagger y CORS (2026-04-14)
 
 | Archivo modificado / creado                          | Tipo de cambio   | Motivo                                                                                     |
 |------------------------------------------------------|------------------|--------------------------------------------------------------------------------------------|
 | `src/main/resources/application.properties`         | Corrección       | URL MySQL en una línea, dialect removido, `open-in-view=false`, nombre de app deduplicado |
-| `src/test/resources/application-test.properties`    | Corrección       | Dialect H2 removido (Hibernate 6 auto-detecta)                                             |
-| `pom.xml`                                            | Ampliación       | Dependencias JJWT 0.12.3 (`jjwt-api`, `jjwt-impl`, `jjwt-jackson`)                       |
-| `config/SecurityBeansConfig.java`                   | Reemplazo total  | `SecurityFilterChain` real con JWT, rutas por rol, `AuthenticationManager` bean           |
+| `src/test/resources/application-test.properties`    | Corrección       | Ajustes para H2 en tests                                                                  |
+| `pom.xml`                                            | Ampliación       | JJWT 0.12.3; `springdoc-openapi-starter-webmvc-ui` 2.5.0 (Swagger UI)                      |
+| `config/SecurityBeansConfig.java`                   | Reemplazo/ampliación | `SecurityFilterChain` con JWT, rutas por rol, `AuthenticationManager`, CORS, rutas Swagger en `permitAll` |
 | `security/JwtUtil.java`                              | Creación         | Genera y valida tokens HS256 con JJWT 0.12.x                                              |
-| `security/UserDetailsServiceImpl.java`               | Creación         | Carga `Usuario` desde BD, mapea a `UserDetails` con `ROLE_` prefix                        |
+| `security/UserDetailsServiceImpl.java`               | Creación         | Carga `Usuario` desde BD, mapea a `UserDetails` con prefijo `ROLE_`                        |
 | `security/JwtAuthenticationFilter.java`              | Creación         | `OncePerRequestFilter` que valida Bearer token en cada request                             |
 | `controller/AuthController.java`                    | Creación         | `POST /api/auth/login` y `POST /api/auth/register` — devuelven JWT                        |
-| `dto/LoginRequest.java`                              | Creación         | Input para login (`username`, `password`)                                                  |
-| `dto/AuthResponse.java`                              | Creación         | Output JWT (`token`, `username`, `rol`)                                                    |
-| `exception/GlobalExceptionHandler.java`             | Ampliación       | Nuevos handlers: `DataIntegrityViolationException` (409), `BadCredentialsException` (401), `DisabledException` (403) |
+| `dto/LoginRequest.java` / `dto/AuthResponse.java`     | Creación         | Contratos de login y respuesta con token                                                   |
+| `exception/GlobalExceptionHandler.java`             | Ampliación       | Handlers: `DataIntegrityViolationException` (409), `BadCredentialsException` (401), `DisabledException` (403) |
 | `service/impl/ItemCarritoServiceImpl.java`           | Fix              | `IllegalArgumentException` → `ResourceNotFoundException`. Validación en `delete()`.       |
 | `service/impl/ItemOrdenServiceImpl.java`             | Fix              | `IllegalArgumentException` → `ResourceNotFoundException`. Validación en `delete()`.       |
-| `service/impl/CarritoServiceImpl.java`               | Ampliación       | `agregarItem()`: valida que `producto.estado == ACTIVO` antes de agregar al carrito        |
-| `Trekking-Ecommerce.postman_collection.json`        | Creación         | Colección Postman con todos los endpoints, variables y bodies de ejemplo                   |
+| `service/impl/CarritoServiceImpl.java`               | Ampliación       | `agregarItem()`: valida que el producto sea `ACTIVO` antes de agregar al carrito            |
+| `Trekking-Ecommerce.postman_collection.json`        | Creación         | Colección Postman con endpoints, variables y bodies de ejemplo                             |
 
----
+### 7.3 Fase 5 — Descuentos, carritos, jobs y ownership (2026-04-14)
 
-## 8. Cambios realizados en Fase 4 (sesión actual — 2026-04-14)
-
-| Archivo modificado / creado              | Tipo de cambio | Motivo                                                                                         |
-|------------------------------------------|----------------|------------------------------------------------------------------------------------------------|
-| `pom.xml`                                | Ampliación     | Dependencia `springdoc-openapi-starter-webmvc-ui 2.5.0` para Swagger UI                      |
-| `config/SecurityBeansConfig.java`        | Ampliación     | `CorsConfigurationSource` bean (todos los orígenes en desarrollo). Rutas Swagger en `permitAll`. |
-| `ESTADO_PROYECTO.md`                     | Actualización  | Refleja estado actual: Swagger operativo, CORS configurado, problemas 15 y 16 resueltos        |
-
----
-
-## 9. Cambios realizados en Fase 5 (sesión actual — 2026-04-14)
-
-### 9.1 Mejoras en Descuento
+#### Mejoras en Descuento
 
 | Archivo modificado / creado                        | Tipo de cambio | Motivo                                                                                             |
 |----------------------------------------------------|----------------|----------------------------------------------------------------------------------------------------|
@@ -360,7 +361,7 @@ Acceso: `http://localhost:8080/swagger-ui.html`. Usar botón **Authorize** con
 | `controller/DescuentoController.java`              | Ampliación     | Endpoint `GET /api/descuentos/activos`. Mapeo de campo `nombre` en `toResponse()`.               |
 | `config/SecurityBeansConfig.java`                  | Corrección     | `GET /api/descuentos/activos` habilitado para usuarios autenticados (no solo ADMIN)               |
 
-### 9.2 Mejoras en Carrito
+#### Mejoras en Carrito
 
 | Archivo modificado / creado                        | Tipo de cambio | Motivo                                                                                             |
 |----------------------------------------------------|----------------|----------------------------------------------------------------------------------------------------|
@@ -371,7 +372,7 @@ Acceso: `http://localhost:8080/swagger-ui.html`. Usar botón **Authorize** con
 | `service/CarritoService.java`                      | Ampliación     | Métodos `findByUsuario(Long)` y `vaciarCarritosAbandonados(int)` en la interfaz                   |
 | `service/impl/CarritoServiceImpl.java`             | Ampliación     | Implementa `findByUsuario()` y `vaciarCarritosAbandonados()`: encuentra carritos ACTIVOS inactivos 7+ días, borra sus ítems, los marca como `ABANDONADO` |
 
-### 9.3 Jobs programados
+#### Jobs programados
 
 | Archivo modificado / creado                        | Tipo de cambio | Motivo                                                                                             |
 |----------------------------------------------------|----------------|----------------------------------------------------------------------------------------------------|
@@ -379,11 +380,27 @@ Acceso: `http://localhost:8080/swagger-ui.html`. Usar botón **Authorize** con
 | `job/CarritoJob.java`                              | Creación       | Cron `0 0 2 * * MON` (lunes 02:00 AM): llama a `carritoService.vaciarCarritosAbandonados(7)`      |
 | `job/DescuentoJob.java`                            | Creación       | Cron `0 5 0 * * *` (diario 00:05 AM): llama a `descuentoService.expirarVencidos()`               |
 
-### 9.4 Seguridad — control de ownership
+#### Seguridad — control de ownership
 
 | Archivo modificado / creado                        | Tipo de cambio | Motivo                                                                                             |
 |----------------------------------------------------|----------------|----------------------------------------------------------------------------------------------------|
 | `exception/GlobalExceptionHandler.java`            | Ampliación     | Handler para `AccessDeniedException` → HTTP 403 con formato estándar de error                     |
-| `controller/CarritoController.java`                | Seguridad      | CLIENTE solo ve/modifica sus carritos. ADMIN accede a todos. `usuarioId` derivado del JWT en `create()`. Helpers privados `validarPropietario()` y `esAdmin()`. |
-| `controller/OrdenController.java`                  | Seguridad      | CLIENTE solo ve/opera sus órdenes. ADMIN accede a todas. Helpers privados `validarPropietario()` y `esAdmin()`. `GET /usuario/{id}` valida que el ID solicitado coincida con el usuario autenticado. |
+| `controller/CarritoController.java`                | Seguridad      | CLIENTE solo ve/modifica sus carritos. ADMIN accede a todos. `usuarioId` derivado del JWT en `create()`. (La lógica común de propiedad y rol se extrajo luego a `AuthenticatedController` — ver §7.4.) |
+| `controller/OrdenController.java`                  | Seguridad      | CLIENTE solo ve/opera sus órdenes. ADMIN accede a todas. `GET /usuario/{idUsuario}` acotado al usuario autenticado. (Misma extracción a clase base — ver §7.4.) |
 | `service/CarritoService.java`                      | Ampliación     | Método `findByUsuario(Long)` para filtrado por usuario en `GET /api/carritos`                     |
+
+### 7.4 Fase 6 — Fotos binarias, configuración estricta y tests (2026-04-17)
+
+| Archivo modificado / creado                        | Tipo de cambio | Motivo                                                                                             |
+|----------------------------------------------------|----------------|----------------------------------------------------------------------------------------------------|
+| `application.properties`                           | Configuración  | `spring.jpa.hibernate.ddl-auto=validate`; usuario/clave de BD y JWT parametrizables por entorno; límites multipart documentados para fotos. |
+| `model/Foto.java`                                  | Modelo         | Campos `tipoContenido` y `datos` (`LONGBLOB`); persistencia de archivos en MySQL.                  |
+| `dto/FotoResponse.java`                            | DTO            | `tipoContenido` y `datos` como string Base64 para el cliente.                                     |
+| `service/FotoService.java` / `FotoServiceImpl`    | API servicio   | `create`/`update` con `MultipartFile` en lugar de JSON; lectura de bytes con manejo de error de negocio. |
+| `controller/FotoController.java`                   | API HTTP       | `POST`/`PUT` con `multipart/form-data` (`productoId`, `orden`, `archivo`).                         |
+| `controller/AuthenticatedController.java`         | Refactor       | Clase base abstracta con `esAdmin()`, `getUsuarioAutenticado()`, `validarPropietario()` para DRY en carrito y órdenes. |
+| `controller/CarritoController.java` / `OrdenController.java` | Refactor | Extienden `AuthenticatedController`; listados optimizados con `findAllConItems()` / `findByUsuarioConItems()`. |
+| `service/CarritoService` + impl / `OrdenService` + impl | Ampliación | Métodos de listado con ítems cargados para respuestas anidadas sin N+1 innecesario en el controller. |
+| `service/UsuarioService` + `UsuarioServiceImpl`    | Ampliación     | `findByUsername(String)` expuesto para JWT y para la clase base de controllers.                  |
+| `src/test/.../CarritoServiceImplTest.java`         | Tests          | Pruebas unitarias de reglas de carrito.                                                            |
+| `src/test/.../DescuentoServiceImplTest.java`       | Tests          | Pruebas unitarias de descuentos y expiración.                                                      |
