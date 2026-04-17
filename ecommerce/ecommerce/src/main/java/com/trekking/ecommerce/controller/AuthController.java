@@ -2,8 +2,11 @@ package com.trekking.ecommerce.controller;
 
 import com.trekking.ecommerce.dto.AuthResponse;
 import com.trekking.ecommerce.dto.LoginRequest;
+import com.trekking.ecommerce.dto.RegisterRequest;
 import com.trekking.ecommerce.dto.UsuarioRequest;
 import com.trekking.ecommerce.dto.UsuarioResponse;
+import com.trekking.ecommerce.model.enums.EstadoUsuario;
+import com.trekking.ecommerce.model.enums.RolUsuario;
 import com.trekking.ecommerce.security.JwtUtil;
 import com.trekking.ecommerce.service.UsuarioService;
 import jakarta.validation.Valid;
@@ -45,8 +48,17 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody UsuarioRequest request) {
-        UsuarioResponse usuario = usuarioService.create(request);
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+        UsuarioRequest createRequest = new UsuarioRequest();
+        createRequest.setUsername(request.getUsername());
+        createRequest.setEmail(request.getEmail());
+        createRequest.setPassword(request.getPassword());
+        createRequest.setNombre(request.getNombre());
+        createRequest.setApellido(request.getApellido());
+        createRequest.setRol(RolUsuario.CLIENTE);
+        createRequest.setEstado(EstadoUsuario.ACTIVO);
+
+        UsuarioResponse usuario = usuarioService.create(createRequest);
         UserDetails userDetails = userDetailsService.loadUserByUsername(usuario.getUsername());
         String token = jwtUtil.generateToken(userDetails);
         return ResponseEntity.status(HttpStatus.CREATED).body(AuthResponse.builder()
