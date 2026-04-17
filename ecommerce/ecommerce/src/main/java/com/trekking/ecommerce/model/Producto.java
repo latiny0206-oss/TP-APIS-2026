@@ -21,12 +21,16 @@ import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"variantes", "fotos"})
+@EqualsAndHashCode(exclude = {"variantes", "fotos"})
 @Entity
 @Table(name = "producto")
 public class Producto {

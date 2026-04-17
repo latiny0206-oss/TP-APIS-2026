@@ -12,5 +12,6 @@ public interface UsuarioService {
     UsuarioResponse update(Long id, UsuarioRequest request);
     void delete(Long id);
     Usuario findByUsername(String username);
+    Usuario findEntityById(Long id);
 }
 

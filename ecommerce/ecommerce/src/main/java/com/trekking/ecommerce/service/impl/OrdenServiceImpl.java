@@ -11,6 +11,7 @@ import com.trekking.ecommerce.repository.ItemOrdenRepository;
 import com.trekking.ecommerce.repository.OrdenRepository;
 import com.trekking.ecommerce.repository.UsuarioRepository;
 import com.trekking.ecommerce.service.OrdenService;
+import com.trekking.ecommerce.service.VarianteProductoService;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,11 +27,18 @@ public class OrdenServiceImpl implements OrdenService {
     private final UsuarioRepository usuarioRepository;
     private final CarritoRepository carritoRepository;
     private final DescuentoRepository descuentoRepository;
+    private final VarianteProductoService varianteProductoService;
 
     @Override
     @Transactional(readOnly = true)
     public List<Orden> findAll() {
         return ordenRepository.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Orden> findAllConItems() {
+        return ordenRepository.findAllConItems();
     }
 
     @Override
@@ -83,7 +91,11 @@ public class OrdenServiceImpl implements OrdenService {
     @Override
     @Transactional
     public void delete(Long id) {
-        findById(id);
+        Orden orden = findById(id);
+        // Restaurar stock solo si la orden no fue entregada ni ya cancelada
+        if (orden.getEstado() != EstadoOrden.ENTREGADA && orden.getEstado() != EstadoOrden.CANCELADA) {
+            restaurarStockDeOrden(orden);
+        }
         ordenRepository.deleteById(id);
     }
 
@@ -106,8 +118,15 @@ public class OrdenServiceImpl implements OrdenService {
         if (orden.getEstado() == EstadoOrden.ENTREGADA || orden.getEstado() == EstadoOrden.CANCELADA) {
             throw new BusinessRuleException("No se puede cancelar una orden en estado " + orden.getEstado());
         }
+        restaurarStockDeOrden(orden);
         orden.setEstado(EstadoOrden.CANCELADA);
         return ordenRepository.save(orden);
+    }
+
+    private void restaurarStockDeOrden(Orden orden) {
+        itemOrdenRepository.findByOrdenId(orden.getId())
+                .forEach(item -> varianteProductoService.restaurarStock(
+                        item.getVariante().getId(), item.getCantidad()));
     }
 
     @Override
@@ -127,5 +146,11 @@ public class OrdenServiceImpl implements OrdenService {
     @Transactional(readOnly = true)
     public List<Orden> findByUsuario(Long idUsuario) {
         return ordenRepository.findByUsuarioId(idUsuario);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Orden> findByUsuarioConItems(Long idUsuario) {
+        return ordenRepository.findByUsuarioIdConItems(idUsuario);
     }
 }

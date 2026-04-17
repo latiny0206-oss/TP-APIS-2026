@@ -19,8 +19,8 @@ import com.trekking.ecommerce.repository.DescuentoRepository;
 import com.trekking.ecommerce.repository.ItemCarritoRepository;
 import com.trekking.ecommerce.repository.ItemOrdenRepository;
 import com.trekking.ecommerce.repository.OrdenRepository;
-import com.trekking.ecommerce.repository.UsuarioRepository;
 import com.trekking.ecommerce.service.CarritoService;
+import com.trekking.ecommerce.service.UsuarioService;
 import com.trekking.ecommerce.service.VarianteProductoService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -41,7 +41,7 @@ public class CarritoServiceImpl implements CarritoService {
     private final DescuentoRepository descuentoRepository;
     private final OrdenRepository ordenRepository;
     private final ItemOrdenRepository itemOrdenRepository;
-    private final UsuarioRepository usuarioRepository;
+    private final UsuarioService usuarioService;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,8 +51,20 @@ public class CarritoServiceImpl implements CarritoService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Carrito> findAllConItems() {
+        return carritoRepository.findAllConItems();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Carrito> findByUsuario(Long usuarioId) {
         return carritoRepository.findByUsuarioId(usuarioId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Carrito> findByUsuarioConItems(Long usuarioId) {
+        return carritoRepository.findByUsuarioIdConItems(usuarioId);
     }
 
     @Override
@@ -66,8 +78,7 @@ public class CarritoServiceImpl implements CarritoService {
     @Transactional
     public Carrito create(CarritoRequest request) {
         Carrito carrito = Carrito.builder()
-                .usuario(usuarioRepository.findById(request.getUsuarioId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Usuario", request.getUsuarioId())))
+                .usuario(usuarioService.findEntityById(request.getUsuarioId()))
                 .descuento(resolverDescuento(request.getDescuentoId()))
                 .estado(EstadoCarrito.VACIO)
                 .montoTotal(BigDecimal.ZERO)
@@ -79,8 +90,7 @@ public class CarritoServiceImpl implements CarritoService {
     @Transactional
     public Carrito update(Long id, CarritoRequest request) {
         Carrito actual = findById(id);
-        actual.setUsuario(usuarioRepository.findById(request.getUsuarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario", request.getUsuarioId())));
+        actual.setUsuario(usuarioService.findEntityById(request.getUsuarioId()));
         actual.setDescuento(resolverDescuento(request.getDescuentoId()));
         actual.setMontoTotal(calcularTotal(id));
         return carritoRepository.save(actual);
@@ -162,11 +172,12 @@ public class CarritoServiceImpl implements CarritoService {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal calcularTotal(Long idCarrito) {
-        BigDecimal subtotal = obtenerItems(idCarrito).stream()
+        Carrito carrito = findById(idCarrito);
+        List<ItemCarrito> items = itemCarritoRepository.findByCarritoId(idCarrito);
+        BigDecimal subtotal = items.stream()
                 .map(item -> item.getPrecioUnitario().multiply(BigDecimal.valueOf(item.getCantidad())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        Carrito carrito = findById(idCarrito);
         Descuento descuento = carrito.getDescuento();
         if (descuento == null || !estaVigente(descuento)) {
             return subtotal.setScale(2, RoundingMode.HALF_UP);
@@ -206,13 +217,19 @@ public class CarritoServiceImpl implements CarritoService {
     @Transactional
     public int vaciarCarritosAbandonados(int diasInactividad) {
         LocalDateTime limite = LocalDateTime.now().minusDays(diasInactividad);
-        List<Carrito> inactivos = carritoRepository.findActivosNoModificadosDesde(limite);
-        for (Carrito carrito : inactivos) {
-            itemCarritoRepository.deleteAll(itemCarritoRepository.findByCarritoId(carrito.getId()));
-            carrito.setEstado(EstadoCarrito.ABANDONADO);
-            carrito.setMontoTotal(BigDecimal.ZERO);
-            carritoRepository.save(carrito);
+        List<Carrito> inactivos = carritoRepository.findActivosNoModificadosDesde(EstadoCarrito.ACTIVO, limite);
+        if (inactivos.isEmpty()) {
+            return 0;
         }
+        List<ItemCarrito> todosLosItems = inactivos.stream()
+                .flatMap(c -> itemCarritoRepository.findByCarritoId(c.getId()).stream())
+                .toList();
+        itemCarritoRepository.deleteAllInBatch(todosLosItems);
+        inactivos.forEach(c -> {
+            c.setEstado(EstadoCarrito.ABANDONADO);
+            c.setMontoTotal(BigDecimal.ZERO);
+        });
+        carritoRepository.saveAll(inactivos);
         return inactivos.size();
     }
 
@@ -230,14 +247,6 @@ public class CarritoServiceImpl implements CarritoService {
         List<ItemCarrito> items = obtenerItems(idCarrito);
         if (items.isEmpty()) {
             throw new BusinessRuleException("No se puede realizar la compra: el carrito id " + idCarrito + " está vacío");
-        }
-
-        // Validar stock antes de descontar (falla rápido)
-        for (ItemCarrito item : items) {
-            if (!varianteProductoService.tieneStock(item.getVariante().getId(), item.getCantidad())) {
-                throw new BusinessRuleException("Stock insuficiente para la variante id "
-                        + item.getVariante().getId() + " (solicitado: " + item.getCantidad() + ")");
-            }
         }
 
         BigDecimal total = calcularTotal(idCarrito);

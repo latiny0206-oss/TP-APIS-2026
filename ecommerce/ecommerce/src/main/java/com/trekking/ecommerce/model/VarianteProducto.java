@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,14 +22,22 @@ import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"itemsCarrito", "itemsOrden"})
+@EqualsAndHashCode(exclude = {"itemsCarrito", "itemsOrden"})
 @Entity
-@Table(name = "variante_producto")
+@Table(name = "variante_producto",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_variante_producto_color_talla",
+                columnNames = {"id_producto", "color", "talla"}
+        ))
 public class VarianteProducto {
 
     @Id

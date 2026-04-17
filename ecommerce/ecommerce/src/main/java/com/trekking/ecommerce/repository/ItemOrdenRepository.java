@@ -6,5 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ItemOrdenRepository extends JpaRepository<ItemOrden, Long> {
 	List<ItemOrden> findByOrdenId(Long ordenId);
+
+	boolean existsByVarianteId(Long varianteId);
 }
 

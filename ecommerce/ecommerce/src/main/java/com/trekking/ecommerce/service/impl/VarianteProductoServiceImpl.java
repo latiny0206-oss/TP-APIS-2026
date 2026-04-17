@@ -4,6 +4,8 @@ import com.trekking.ecommerce.dto.VarianteProductoRequest;
 import com.trekking.ecommerce.exception.BusinessRuleException;
 import com.trekking.ecommerce.exception.ResourceNotFoundException;
 import com.trekking.ecommerce.model.VarianteProducto;
+import com.trekking.ecommerce.repository.ItemCarritoRepository;
+import com.trekking.ecommerce.repository.ItemOrdenRepository;
 import com.trekking.ecommerce.repository.VarianteProductoRepository;
 import com.trekking.ecommerce.service.ProductoService;
 import com.trekking.ecommerce.service.VarianteProductoService;
@@ -19,6 +21,8 @@ public class VarianteProductoServiceImpl implements VarianteProductoService {
 
     private final VarianteProductoRepository varianteProductoRepository;
     private final ProductoService productoService;
+    private final ItemCarritoRepository itemCarritoRepository;
+    private final ItemOrdenRepository itemOrdenRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -68,6 +72,14 @@ public class VarianteProductoServiceImpl implements VarianteProductoService {
     @Transactional
     public void delete(Long id) {
         findById(id);
+        if (itemCarritoRepository.existsByVarianteId(id)) {
+            throw new BusinessRuleException(
+                    "No se puede eliminar la variante id " + id + " porque está en carritos activos");
+        }
+        if (itemOrdenRepository.existsByVarianteId(id)) {
+            throw new BusinessRuleException(
+                    "No se puede eliminar la variante id " + id + " porque tiene órdenes asociadas");
+        }
         varianteProductoRepository.deleteById(id);
     }
 
@@ -80,18 +92,32 @@ public class VarianteProductoServiceImpl implements VarianteProductoService {
     @Override
     @Transactional(readOnly = true)
     public boolean tieneStock(Long id, Integer cantidad) {
-        return findById(id).getStock() >= cantidad;
+        if (cantidad == null || cantidad < 1) {
+            throw new BusinessRuleException("La cantidad debe ser mayor a 0");
+        }
+        Integer stock = findById(id).getStock();
+        return stock != null && stock >= cantidad;
     }
 
     @Override
     @Transactional
     public VarianteProducto descontarStock(Long id, Integer cantidad) {
         VarianteProducto variante = findById(id);
-        if (variante.getStock() < cantidad) {
+        int stockActual = variante.getStock() != null ? variante.getStock() : 0;
+        if (stockActual < cantidad) {
             throw new BusinessRuleException("Stock insuficiente para variante id " + id
-                    + ". Stock actual: " + variante.getStock() + ", solicitado: " + cantidad);
+                    + ". Stock actual: " + stockActual + ", solicitado: " + cantidad);
         }
-        variante.setStock(variante.getStock() - cantidad);
+        variante.setStock(stockActual - cantidad);
+        return varianteProductoRepository.save(variante);
+    }
+
+    @Override
+    @Transactional
+    public VarianteProducto restaurarStock(Long id, Integer cantidad) {
+        VarianteProducto variante = findById(id);
+        int stockActual = variante.getStock() != null ? variante.getStock() : 0;
+        variante.setStock(stockActual + cantidad);
         return varianteProductoRepository.save(variante);
     }
 }

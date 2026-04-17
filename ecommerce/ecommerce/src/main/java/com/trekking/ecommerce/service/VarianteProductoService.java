@@ -14,4 +14,5 @@ public interface VarianteProductoService {
     BigDecimal getPrecio(Long id);
     boolean tieneStock(Long id, Integer cantidad);
     VarianteProducto descontarStock(Long id, Integer cantidad);
+    VarianteProducto restaurarStock(Long id, Integer cantidad);
 }

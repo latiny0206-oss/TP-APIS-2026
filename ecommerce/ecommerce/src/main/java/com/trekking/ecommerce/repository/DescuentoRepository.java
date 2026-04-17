@@ -12,6 +12,7 @@ public interface DescuentoRepository extends JpaRepository<Descuento, Long> {
 
     List<Descuento> findByEstado(EstadoDescuento estado);
 
-    @Query("SELECT d FROM Descuento d WHERE d.estado = 'ACTIVO' AND d.fechaFin < :hoy")
-    List<Descuento> findActivosExpirados(@Param("hoy") LocalDate hoy);
+    @Query("SELECT d FROM Descuento d WHERE d.estado = :estado AND d.fechaFin < :hoy")
+    List<Descuento> findActivosExpirados(@Param("estado") EstadoDescuento estado,
+                                         @Param("hoy") LocalDate hoy);
 }

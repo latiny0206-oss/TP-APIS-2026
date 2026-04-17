@@ -4,16 +4,11 @@ import com.trekking.ecommerce.dto.ItemOrdenResponse;
 import com.trekking.ecommerce.dto.OrdenResponse;
 import com.trekking.ecommerce.model.ItemOrden;
 import com.trekking.ecommerce.model.Orden;
-import com.trekking.ecommerce.model.Usuario;
 import com.trekking.ecommerce.service.OrdenService;
-import com.trekking.ecommerce.service.UsuarioService;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,17 +19,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/ordenes")
 @RequiredArgsConstructor
-public class OrdenController {
+public class OrdenController extends AuthenticatedController {
 
     private final OrdenService ordenService;
-    private final UsuarioService usuarioService;
 
     @GetMapping
     public ResponseEntity<List<OrdenResponse>> findAll() {
         List<Orden> ordenes = esAdmin()
-                ? ordenService.findAll()
-                : ordenService.findByUsuario(getUsuarioAutenticado().getId());
-        return ResponseEntity.ok(ordenes.stream().map(this::toResponse).toList());
+                ? ordenService.findAllConItems()
+                : ordenService.findByUsuarioConItems(getUsuarioAutenticado().getId());
+        return ResponseEntity.ok(ordenes.stream().map(o -> toResponse(o, o.getItems())).toList());
     }
 
     @GetMapping("/{id}")
@@ -79,35 +73,17 @@ public class OrdenController {
     @GetMapping("/usuario/{idUsuario}")
     public ResponseEntity<List<OrdenResponse>> historialPorUsuario(@PathVariable Long idUsuario) {
         validarPropietario(idUsuario);
-        return ResponseEntity.ok(ordenService.findByUsuario(idUsuario).stream()
-                .map(this::toResponse).toList());
-    }
-
-    // ─── Helpers de seguridad ────────────────────────────────────────────────
-
-    private boolean esAdmin() {
-        return SecurityContextHolder.getContext().getAuthentication()
-                .getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-    }
-
-    private Usuario getUsuarioAutenticado() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return usuarioService.findByUsername(auth.getName());
-    }
-
-    private void validarPropietario(Long propietarioId) {
-        if (esAdmin()) return;
-        if (!getUsuarioAutenticado().getId().equals(propietarioId)) {
-            throw new AccessDeniedException("No tenés permiso para acceder a este recurso");
-        }
+        return ResponseEntity.ok(ordenService.findByUsuarioConItems(idUsuario).stream()
+                .map(o -> toResponse(o, o.getItems())).toList());
     }
 
     // ─── Mapeo a DTOs ────────────────────────────────────────────────────────
 
     private OrdenResponse toResponse(Orden o) {
-        List<ItemOrdenResponse> items = ordenService.obtenerItems(o.getId()).stream()
-                .map(this::toItemResponse).toList();
+        return toResponse(o, ordenService.obtenerItems(o.getId()));
+    }
+
+    private OrdenResponse toResponse(Orden o, List<ItemOrden> items) {
         return OrdenResponse.builder()
                 .id(o.getId())
                 .usuarioId(o.getUsuario().getId())
@@ -116,7 +92,7 @@ public class OrdenController {
                 .fechaCreacion(o.getFechaCreacion())
                 .montoFinal(o.getMontoFinal())
                 .estado(o.getEstado())
-                .items(items)
+                .items(items.stream().map(this::toItemResponse).toList())
                 .build();
     }
 

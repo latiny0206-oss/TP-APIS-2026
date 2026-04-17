@@ -13,10 +13,17 @@ public interface CarritoRepository extends JpaRepository<Carrito, Long> {
 
     List<Carrito> findByUsuarioId(Long usuarioId);
 
+    @Query("SELECT DISTINCT c FROM Carrito c LEFT JOIN FETCH c.items i LEFT JOIN FETCH i.variante v LEFT JOIN FETCH v.producto WHERE c.usuario.id = :usuarioId")
+    List<Carrito> findByUsuarioIdConItems(@Param("usuarioId") Long usuarioId);
+
+    @Query("SELECT DISTINCT c FROM Carrito c LEFT JOIN FETCH c.items i LEFT JOIN FETCH i.variante v LEFT JOIN FETCH v.producto")
+    List<Carrito> findAllConItems();
+
     Optional<Carrito> findByUsuarioIdAndEstado(Long usuarioId, EstadoCarrito estado);
 
-    @Query("SELECT c FROM Carrito c WHERE c.estado = 'ACTIVO' AND c.fechaUltimaModificacion < :limite")
-    List<Carrito> findActivosNoModificadosDesde(@Param("limite") LocalDateTime limite);
+    @Query("SELECT c FROM Carrito c WHERE c.estado = :estado AND c.fechaUltimaModificacion < :limite")
+    List<Carrito> findActivosNoModificadosDesde(@Param("estado") EstadoCarrito estado,
+                                                @Param("limite") LocalDateTime limite);
 
     boolean existsByDescuentoIdAndEstado(Long descuentoId, EstadoCarrito estado);
 }

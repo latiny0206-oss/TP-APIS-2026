@@ -116,7 +116,7 @@ public class DescuentoServiceImpl implements DescuentoService {
     @Override
     @Transactional
     public int expirarVencidos() {
-        List<Descuento> expirados = descuentoRepository.findActivosExpirados(LocalDate.now());
+        List<Descuento> expirados = descuentoRepository.findActivosExpirados(EstadoDescuento.ACTIVO, LocalDate.now());
         expirados.forEach(d -> d.setEstado(EstadoDescuento.EXPIRADO));
         descuentoRepository.saveAll(expirados);
         return expirados.size();

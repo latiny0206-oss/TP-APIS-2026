@@ -9,7 +9,9 @@ import java.util.List;
 
 public interface CarritoService {
     List<Carrito> findAll();
+    List<Carrito> findAllConItems();
     List<Carrito> findByUsuario(Long usuarioId);
+    List<Carrito> findByUsuarioConItems(Long usuarioId);
     Carrito findById(Long id);
     Carrito create(CarritoRequest request);
     Carrito update(Long id, CarritoRequest request);

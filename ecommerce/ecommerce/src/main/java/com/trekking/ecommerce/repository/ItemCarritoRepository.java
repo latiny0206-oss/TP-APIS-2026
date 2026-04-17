@@ -9,5 +9,7 @@ public interface ItemCarritoRepository extends JpaRepository<ItemCarrito, Long> 
 	List<ItemCarrito> findByCarritoId(Long carritoId);
 
 	Optional<ItemCarrito> findByCarritoIdAndVarianteId(Long carritoId, Long varianteId);
+
+	boolean existsByVarianteId(Long varianteId);
 }
 

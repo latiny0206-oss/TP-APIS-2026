@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface OrdenService {
     List<Orden> findAll();
+    List<Orden> findAllConItems();
     Orden findById(Long id);
     Orden create(Orden orden);
     Orden update(Long id, Orden orden);
@@ -16,5 +17,6 @@ public interface OrdenService {
     BigDecimal getMontoFinal(Long id);
     List<ItemOrden> obtenerItems(Long id);
     List<Orden> findByUsuario(Long idUsuario);
+    List<Orden> findByUsuarioConItems(Long idUsuario);
 }
 
