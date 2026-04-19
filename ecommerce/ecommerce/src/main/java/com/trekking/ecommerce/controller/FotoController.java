@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -36,31 +37,34 @@ public class FotoController {
         return ResponseEntity.ok(toResponse(fotoService.findById(id)));
     }
 
-    @GetMapping("/producto/{productoId}")
-    public ResponseEntity<List<FotoResponse>> findByProducto(@PathVariable Long productoId) {
-        return ResponseEntity.ok(fotoService.findByProducto(productoId).stream()
+    @GetMapping("/variante/{varianteId}")
+    public ResponseEntity<List<FotoResponse>> findByVariante(@PathVariable Long varianteId) {
+        return ResponseEntity.ok(fotoService.findByVariante(varianteId).stream()
                 .map(this::toResponse).toList());
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<FotoResponse> create(
-            @RequestParam Long productoId,
+            @RequestParam Long varianteId,
             @RequestParam Integer orden,
             @RequestParam MultipartFile archivo) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(toResponse(fotoService.create(productoId, orden, archivo)));
+                .body(toResponse(fotoService.create(varianteId, orden, archivo)));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<FotoResponse> update(
             @PathVariable Long id,
-            @RequestParam Long productoId,
+            @RequestParam Long varianteId,
             @RequestParam Integer orden,
             @RequestParam MultipartFile archivo) {
-        return ResponseEntity.ok(toResponse(fotoService.update(id, productoId, orden, archivo)));
+        return ResponseEntity.ok(toResponse(fotoService.update(id, varianteId, orden, archivo)));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         fotoService.delete(id);
         return ResponseEntity.noContent().build();
@@ -72,7 +76,7 @@ public class FotoController {
                 : null;
         return FotoResponse.builder()
                 .id(f.getId())
-                .productoId(f.getProducto().getId())
+                .varianteId(f.getVariante().getId())
                 .nombre(f.getNombre())
                 .tipoContenido(f.getTipoContenido())
                 .orden(f.getOrden())

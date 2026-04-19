@@ -69,9 +69,6 @@ public class Descuento {
     @Column(nullable = false, length = 20)
     private EstadoDescuento estado;
 
-    @Column
-    private Double porcentaje;
-
     @JsonIgnore
     @OneToMany(mappedBy = "descuento")
     private List<Carrito> carritos;

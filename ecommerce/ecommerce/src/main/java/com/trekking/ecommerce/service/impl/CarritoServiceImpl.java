@@ -187,10 +187,7 @@ public class CarritoServiceImpl implements CarritoService {
         if (descuento.getTipo() == TipoDescuento.FIJO) {
             descuentoAplicado = descuento.getValor().min(subtotal);
         } else {
-            BigDecimal porcentaje = descuento.getPorcentaje() != null
-                    ? BigDecimal.valueOf(descuento.getPorcentaje())
-                    : descuento.getValor();
-            descuentoAplicado = subtotal.multiply(porcentaje).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            descuentoAplicado = subtotal.multiply(descuento.getValor()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         }
 
         return subtotal.subtract(descuentoAplicado).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);

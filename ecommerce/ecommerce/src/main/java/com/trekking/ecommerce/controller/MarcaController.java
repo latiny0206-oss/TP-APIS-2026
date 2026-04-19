@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -38,17 +39,20 @@ public class MarcaController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MarcaResponse> create(@Valid @RequestBody MarcaRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(marcaService.create(request)));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MarcaResponse> update(@PathVariable Long id,
             @Valid @RequestBody MarcaRequest request) {
         return ResponseEntity.ok(toResponse(marcaService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         marcaService.delete(id);
         return ResponseEntity.noContent().build();
