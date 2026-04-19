@@ -55,7 +55,6 @@ public class DescuentoServiceImpl implements DescuentoService {
                 .fechaInicio(request.getFechaInicio())
                 .fechaFin(request.getFechaFin())
                 .estado(request.getEstado())
-                .porcentaje(request.getPorcentaje())
                 .build();
         return descuentoRepository.save(descuento);
     }
@@ -71,7 +70,6 @@ public class DescuentoServiceImpl implements DescuentoService {
         actual.setFechaInicio(request.getFechaInicio());
         actual.setFechaFin(request.getFechaFin());
         actual.setEstado(request.getEstado());
-        actual.setPorcentaje(request.getPorcentaje());
         return descuentoRepository.save(actual);
     }
 
@@ -97,10 +95,7 @@ public class DescuentoServiceImpl implements DescuentoService {
         if (descuento.getTipo() == TipoDescuento.FIJO) {
             return descuento.getValor().min(monto);
         }
-        BigDecimal porcentaje = descuento.getPorcentaje() != null
-                ? BigDecimal.valueOf(descuento.getPorcentaje())
-                : descuento.getValor();
-        return monto.multiply(porcentaje).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        return monto.multiply(descuento.getValor()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 
     @Override
@@ -128,13 +123,9 @@ public class DescuentoServiceImpl implements DescuentoService {
                     "La fecha de fin debe ser posterior o igual a la fecha de inicio");
         }
         if (request.getTipo() == TipoDescuento.PORCENTAJE) {
-            if (request.getPorcentaje() == null) {
-                throw new BusinessRuleException(
-                        "El campo 'porcentaje' es obligatorio cuando el tipo es PORCENTAJE");
-            }
-            if (request.getPorcentaje() <= 0 || request.getPorcentaje() > 100) {
-                throw new BusinessRuleException(
-                        "El porcentaje debe ser mayor a 0 y máximo 100");
+            if (request.getValor().compareTo(BigDecimal.ZERO) <= 0
+                    || request.getValor().compareTo(BigDecimal.valueOf(100)) > 0) {
+                throw new BusinessRuleException("El valor del descuento porcentual debe ser mayor a 0 y máximo 100");
             }
         }
         if (request.getTipo() == TipoDescuento.FIJO

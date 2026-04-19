@@ -5,7 +5,7 @@ import com.trekking.ecommerce.exception.ResourceNotFoundException;
 import com.trekking.ecommerce.model.Foto;
 import com.trekking.ecommerce.repository.FotoRepository;
 import com.trekking.ecommerce.service.FotoService;
-import com.trekking.ecommerce.service.ProductoService;
+import com.trekking.ecommerce.service.VarianteProductoService;
 import java.io.IOException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class FotoServiceImpl implements FotoService {
 
     private final FotoRepository fotoRepository;
-    private final ProductoService productoService;
+    private final VarianteProductoService varianteProductoService;
 
     @Override
     @Transactional(readOnly = true)
@@ -28,9 +28,9 @@ public class FotoServiceImpl implements FotoService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Foto> findByProducto(Long productoId) {
-        productoService.findById(productoId);
-        return fotoRepository.findByProductoId(productoId);
+    public List<Foto> findByVariante(Long varianteId) {
+        varianteProductoService.findById(varianteId);
+        return fotoRepository.findByVarianteId(varianteId);
     }
 
     @Override
@@ -42,9 +42,9 @@ public class FotoServiceImpl implements FotoService {
 
     @Override
     @Transactional
-    public Foto create(Long productoId, Integer orden, MultipartFile archivo) {
+    public Foto create(Long varianteId, Integer orden, MultipartFile archivo) {
         Foto foto = Foto.builder()
-                .producto(productoService.findById(productoId))
+                .variante(varianteProductoService.findById(varianteId))
                 .nombre(archivo.getOriginalFilename())
                 .tipoContenido(archivo.getContentType())
                 .orden(orden)
@@ -55,9 +55,9 @@ public class FotoServiceImpl implements FotoService {
 
     @Override
     @Transactional
-    public Foto update(Long id, Long productoId, Integer orden, MultipartFile archivo) {
+    public Foto update(Long id, Long varianteId, Integer orden, MultipartFile archivo) {
         Foto actual = findById(id);
-        actual.setProducto(productoService.findById(productoId));
+        actual.setVariante(varianteProductoService.findById(varianteId));
         actual.setOrden(orden);
         actual.setNombre(archivo.getOriginalFilename());
         actual.setTipoContenido(archivo.getContentType());

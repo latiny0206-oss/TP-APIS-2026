@@ -17,5 +17,4 @@ public class DescuentoResponse {
     LocalDate fechaInicio;
     LocalDate fechaFin;
     EstadoDescuento estado;
-    Double porcentaje;
 }

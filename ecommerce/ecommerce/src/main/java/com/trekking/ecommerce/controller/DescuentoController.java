@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -43,17 +44,20 @@ public class DescuentoController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DescuentoResponse> create(@Valid @RequestBody DescuentoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(descuentoService.create(request)));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DescuentoResponse> update(@PathVariable Long id,
             @Valid @RequestBody DescuentoRequest request) {
         return ResponseEntity.ok(toResponse(descuentoService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         descuentoService.delete(id);
         return ResponseEntity.noContent().build();
@@ -78,7 +82,6 @@ public class DescuentoController {
                 .fechaInicio(d.getFechaInicio())
                 .fechaFin(d.getFechaFin())
                 .estado(d.getEstado())
-                .porcentaje(d.getPorcentaje())
                 .build();
     }
 }

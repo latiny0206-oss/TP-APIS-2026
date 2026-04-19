@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -39,6 +40,7 @@ public class VarianteProductoController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<VarianteProductoResponse> create(
             @Valid @RequestBody VarianteProductoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -46,12 +48,14 @@ public class VarianteProductoController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<VarianteProductoResponse> update(@PathVariable Long id,
             @Valid @RequestBody VarianteProductoRequest request) {
         return ResponseEntity.ok(toResponse(varianteProductoService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         varianteProductoService.delete(id);
         return ResponseEntity.noContent().build();

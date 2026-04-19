@@ -29,8 +29,8 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"variantes", "fotos"})
-@EqualsAndHashCode(exclude = {"variantes", "fotos"})
+@ToString(exclude = {"variantes"})
+@EqualsAndHashCode(exclude = {"variantes"})
 @Entity
 @Table(name = "producto")
 public class Producto {
@@ -70,9 +70,5 @@ public class Producto {
     @JsonIgnore
     @OneToMany(mappedBy = "producto")
     private List<VarianteProducto> variantes;
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "producto")
-    private List<Foto> fotos;
 }
 

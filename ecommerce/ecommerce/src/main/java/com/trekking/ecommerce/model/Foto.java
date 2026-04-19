@@ -30,8 +30,8 @@ public class Foto {
 
     @NotNull
     @ManyToOne
-    @JoinColumn(name = "id_producto", nullable = false)
-    private Producto producto;
+    @JoinColumn(name = "id_variante", nullable = false)
+    private VarianteProducto variante;
 
     @Column(nullable = false, length = 255)
     private String nombre;

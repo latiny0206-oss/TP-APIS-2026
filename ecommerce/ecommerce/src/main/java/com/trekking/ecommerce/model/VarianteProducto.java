@@ -30,8 +30,8 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"itemsCarrito", "itemsOrden"})
-@EqualsAndHashCode(exclude = {"itemsCarrito", "itemsOrden"})
+@ToString(exclude = {"itemsCarrito", "itemsOrden", "fotos"})
+@EqualsAndHashCode(exclude = {"itemsCarrito", "itemsOrden", "fotos"})
 @Entity
 @Table(name = "variante_producto",
         uniqueConstraints = @UniqueConstraint(
@@ -88,5 +88,9 @@ public class VarianteProducto {
     @JsonIgnore
     @OneToMany(mappedBy = "variante")
     private List<ItemOrden> itemsOrden;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "variante")
+    private List<Foto> fotos;
 }
 

@@ -7,7 +7,7 @@ import lombok.Value;
 @Builder
 public class FotoResponse {
     Long id;
-    Long productoId;
+    Long varianteId;
     String nombre;
     String tipoContenido;
     Integer orden;

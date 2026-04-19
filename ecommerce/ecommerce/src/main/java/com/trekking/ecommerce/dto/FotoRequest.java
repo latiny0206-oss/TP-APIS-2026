@@ -8,7 +8,7 @@ import lombok.Data;
 public class FotoRequest {
 
     @NotNull
-    private Long productoId;
+    private Long varianteId;
 
     @NotBlank
     private String nombre;

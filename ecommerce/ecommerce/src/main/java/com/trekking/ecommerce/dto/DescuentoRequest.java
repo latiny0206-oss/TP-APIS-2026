@@ -33,5 +33,4 @@ public class DescuentoRequest {
     @NotNull
     private EstadoDescuento estado;
 
-    private Double porcentaje;
 }
