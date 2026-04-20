@@ -217,7 +217,7 @@ public class CarritoServiceImpl implements CarritoService {
     @Transactional
     public int vaciarCarritosAbandonados(int diasInactividad) {
         LocalDateTime limite = LocalDateTime.now().minusDays(diasInactividad);
-        List<Carrito> inactivos = carritoRepository.findActivosNoModificadosDesde(EstadoCarrito.ACTIVO, limite);
+        List<Carrito> inactivos = carritoRepository.findByEstadoAndFechaUltimaModificacionBefore(EstadoCarrito.ACTIVO, limite);
         if (inactivos.isEmpty()) {
             return 0;
         }
