@@ -19,6 +19,7 @@ import com.trekking.ecommerce.repository.ItemCarritoRepository;
 import com.trekking.ecommerce.repository.ItemOrdenRepository;
 import com.trekking.ecommerce.repository.OrdenRepository;
 import com.trekking.ecommerce.repository.UsuarioRepository;
+import com.trekking.ecommerce.service.UsuarioService;
 import com.trekking.ecommerce.service.VarianteProductoService;
 import com.trekking.ecommerce.service.impl.CarritoServiceImpl;
 import java.math.BigDecimal;
@@ -47,6 +48,7 @@ class CarritoServiceImplTest {
     @Mock private OrdenRepository ordenRepository;
     @Mock private ItemOrdenRepository itemOrdenRepository;
     @Mock private UsuarioRepository usuarioRepository;
+    @Mock private UsuarioService usuarioService;
 
     @InjectMocks
     private CarritoServiceImpl carritoService;
@@ -122,7 +124,6 @@ class CarritoServiceImplTest {
                 .id(2L)
                 .tipo(TipoDescuento.PORCENTAJE)
                 .valor(new BigDecimal("10"))
-                .porcentaje(10.0)
                 .estado(EstadoDescuento.ACTIVO)
                 .fechaInicio(LocalDate.now().minusDays(1))
                 .fechaFin(LocalDate.now().plusDays(1))
