@@ -21,9 +21,7 @@ public interface CarritoRepository extends JpaRepository<Carrito, Long> {
 
     Optional<Carrito> findByUsuarioIdAndEstado(Long usuarioId, EstadoCarrito estado);
 
-    @Query("SELECT c FROM Carrito c WHERE c.estado = :estado AND c.fechaUltimaModificacion < :limite")
-    List<Carrito> findActivosNoModificadosDesde(@Param("estado") EstadoCarrito estado,
-                                                @Param("limite") LocalDateTime limite);
+    List<Carrito> findByEstadoAndFechaUltimaModificacionBefore(EstadoCarrito estado, LocalDateTime limite);
 
     boolean existsByDescuentoIdAndEstado(Long descuentoId, EstadoCarrito estado);
 }

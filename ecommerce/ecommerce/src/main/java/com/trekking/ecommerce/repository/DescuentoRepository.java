@@ -5,14 +5,9 @@ import com.trekking.ecommerce.model.enums.EstadoDescuento;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
 public interface DescuentoRepository extends JpaRepository<Descuento, Long> {
 
     List<Descuento> findByEstado(EstadoDescuento estado);
 
-    @Query("SELECT d FROM Descuento d WHERE d.estado = :estado AND d.fechaFin < :hoy")
-    List<Descuento> findActivosExpirados(@Param("estado") EstadoDescuento estado,
-                                         @Param("hoy") LocalDate hoy);
+    List<Descuento> findByEstadoAndFechaFinBefore(EstadoDescuento estado, LocalDate hoy);
 }
