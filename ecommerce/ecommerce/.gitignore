@@ -32,6 +32,14 @@ build/
 ### VS Code ###
 .vscode/
 
-### Variables de entorno ###
+### Variables de entorno y configuración local con secretos ###
 .env
-.env.local
+.env.*
+!.env.example
+application-local.properties
+
+### OS ###
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
